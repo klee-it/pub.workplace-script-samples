@@ -1,0 +1,46 @@
+{
+    "Rules": [
+        {
+            "SettingName": "MDATP_installed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP not installed",
+                    "Description": "Your computer doesn't have installed Microsoft Defender.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "MDATP_licensed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP not licensed",
+                    "Description": "Your computer doesn't have a licensed Microsoft Defender installation.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "MDATP_version",
+            "Operator": "GreaterThan",
+            "DataType": "Version",
+            "Operand": "101.94.0",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP version too old",
+                    "Description": "Your computer has installed a old Microsoft Defender version.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        }
+    ]
+}

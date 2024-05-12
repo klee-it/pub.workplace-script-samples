@@ -1,0 +1,32 @@
+{
+    "Rules": [
+        {
+            "SettingName": "APT_installed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "APT not installed",
+                    "Description": "Your computer does not have installed APT.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "APT_isOK",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "APT update failure",
+                    "Description": "Your computer raised a warning or error during 'apt-get update' process.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        }
+    ]
+}
