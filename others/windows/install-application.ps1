@@ -1,9 +1,9 @@
 # Basic information
-# |__ Version: 2024-01-09
+# |__ Version: 2024-05-17
 # |__ Command: powershell.exe -NoLogo -WindowStyle Hidden -ExecutionPolicy ByPass -File ".\install-application.ps1"
 # Example json file
 # {
-#     "_version": "2024-01-09",
+#     "_version": "2024-05-17",
 #     "application": {
 #         "display_name": "Google Chrome",
 #         "version": "87.0.4280.88",
@@ -64,7 +64,7 @@ $script:LogFilePath     = "$($env:ProgramData)\Custom\$($script:MyScriptInfo.Bas
 $script:LogFileName     = "$($script:MyScriptInfo.BaseName).log"
 
 # set configuration parameters
-$script:ConfigFilePath  = "."
+$script:ConfigFilePath  = "$($PSScriptRoot)"
 $script:ConfigFileName  = "$($script:MyScriptInfo.BaseName).json"
 $script:ConfigObject    = {}
 
@@ -501,7 +501,7 @@ function Install-Application
             {
                 "msi" { break }
                 default {
-                    $SetupFile = ".\$($SetupFile)"
+                    $SetupFile = "$($PSScriptRoot)\$($SetupFile)"
                     break
                 }
             }
@@ -520,7 +520,8 @@ function Install-Application
             }
             "ps1" {
                 $StartProcessSplat["FilePath"] = "$($Env:SystemRoot)\system32\WindowsPowerShell\v1.0\powershell.exe"
-                $StartProcessSplat["ArgumentList"] += ".\$($SetupFile)"
+                $StartProcessSplat["ArgumentList"] += "-ExecutionPolicy ByPass"
+                $StartProcessSplat["ArgumentList"] += "-File `"$($SetupFile)`""
                 break
             }
             default { 
