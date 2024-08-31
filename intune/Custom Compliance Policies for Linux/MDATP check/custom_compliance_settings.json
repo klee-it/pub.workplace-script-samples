@@ -32,7 +32,7 @@
             "SettingName": "MDATP_version",
             "Operator": "GreaterThan",
             "DataType": "Version",
-            "Operand": "101.94.0",
+            "Operand": "101.24000.0",
             "MoreInfoUrl": "https://knowledgebase",
             "RemediationStrings": [
                 {
