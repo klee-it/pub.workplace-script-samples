@@ -157,6 +157,153 @@ Function Set-ClientTlsProtocols
 }
 
 ###
+### FUNCTION: get logged on users
+###
+Function Get-LoggedOnUsers
+{
+    [CmdLetBinding(DefaultParameterSetName="Default")]
+
+    # set function parameters
+    $ErrorActionPreference = 'Stop'
+    $return_object = [PSCustomObject]@{
+        errorcode = -1
+        content = @()
+    }
+    
+    try
+    {
+        Write-Logging -Value "# $($MyInvocation.MyCommand)"
+        
+        # get query raw output
+        $QueryRawData = (&query 'user' | Out-String -Stream)
+        
+        # set temp output because nobody is logged on
+        if ( [string]::IsNullOrWhitespace($QueryRawData) )
+        {
+            $QueryRawData = @(
+                " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME"
+                ">temp                  rdp-tcp#33         00  Disc            .  $(Get-Date -format 'dd.MM.yyyy HH:mm')"
+            )
+        }
+
+        # move "ID" to steps before, because of bigger ID numbers: 2, 22, 222, 2222
+        $QueryRawData[0] = $QueryRawData[0].replace('  ID', 'ID  ')
+        
+        # Take the header text and insert a '|' before the start of every HEADER - although defined as inserting a bar after every 2 or more spaces, or after the space at the start.
+        $fencedHeader = $QueryRawData[0] -replace '(^\s|\s{2,})', '$1|'
+
+        # Now get the positions of all bars.
+        $fenceIndexes = ($fencedHeader | Select-String '\|' -AllMatches).Matches.Index
+        
+        # set timespan format for IdleTime
+        $timeSpanFormats = [string[]]@("d\+hh\:mm", "h\:mm", "%m")
+        
+        # go trough the lines
+        foreach ($line in $QueryRawData | Select-Object -Skip 1)
+        {
+            # Insert bars on the same positions, and then split the line into separate parts using these bars.
+            $fenceIndexes | ForEach-Object { $line = $line.Insert($_, "|") }
+            $parts = $line -split '\|' | ForEach-Object { $_.Trim() }
+            
+            # Parse each part as a strongly typed value, using the UI Culture if needed.
+            $return_object.content += [PSCustomObject] @{
+                IsCurrent   = ($parts[0] -eq '>')
+                Username    = $parts[1]
+                SessionName = $parts[2]
+                Id          = [int]($parts[3])
+                State       = $parts[4]
+                IdleTime    = $parts[5] #$(if($parts[5] -ne '.' -and $parts[5] -ne 'none' -and (-not [string]::IsNullOrWhitespace($parts[5]))) { [TimeSpan]::ParseExact($parts[5], $timeSpanFormats, [CultureInfo]::CurrentUICulture) } else { [TimeSpan]::Zero })
+                LogonTime   = $parts[6] #[DateTime]::ParseExact($parts[6], "g", [CultureInfo]::CurrentUICulture)
+            }
+        }
+        
+        $return_object.errorcode = 0
+    }
+    catch
+    {
+        Write-Logging -Value "### ERROR: $($MyInvocation.MyCommand) ###"
+        $return_object.errorcode = $($_.Exception.HResult)
+        Write-Logging -Value "Message: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        Write-Logging -Value "### ERROR END ###"
+    }
+    finally
+    {
+        $ErrorActionPreference = 'Continue' # default value
+    }
+
+    return $return_object
+}
+
+###
+### FUNCTION: invoke device restart
+###
+Function Invoke-DeviceRestart
+{
+    [CmdLetBinding(DefaultParameterSetName="Default")]
+
+    # set function parameters
+    $ErrorActionPreference = 'Stop'
+    $return_object = [PSCustomObject]@{
+        errorcode = 0
+        content = @()
+    }
+    
+    try
+    {
+        Write-Logging -Value '--------------------------------------------------'
+        Write-Logging -Value "# $($MyInvocation.MyCommand)"
+        
+        # set function parameters
+        $DeviceRebootAllowed = $true
+        
+        # check if device reboot is allowed
+        $LoggedOnUsers = Get-LoggedOnUsers
+
+        if ($LoggedOnUsers.errorcode -eq 0)
+        {
+            $ActiveUsers = $LoggedOnUsers.content | Where-Object { $_.State -eq 'Active'}
+            $ActiveUserCount = ($ActiveUsers | Measure-Object).Count
+
+            if ($ActiveUserCount -ne 0)
+            {
+                $DeviceRebootAllowed = $false
+                Write-Logging -Value "|__ Current logged on user(s): $($ActiveUsers | ConvertTo-Json -Compress)"
+            }
+        }
+        else
+        {
+            $DeviceRebootAllowed = $false
+        }
+
+        Remove-Variable -Name "LoggedOnUsers" -Force
+
+        # restart device
+        if ($DeviceRebootAllowed)
+        {
+            Restart-Computer -Force
+            Write-Logging -Value "|__ Device reboot invoked"
+        }
+        else
+        {
+            Write-Logging -Value "|__ Device reboot skipped"
+        }
+    }
+    catch
+    {
+        Write-Logging -Value "### ERROR: $($MyInvocation.MyCommand) ###"
+        $return_object.errorcode = $($_.Exception.HResult)
+        Write-Logging -Value "Message: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        Write-Logging -Value "### ERROR END ###"
+    }
+    finally
+    {
+        $ErrorActionPreference = 'Continue' # default value
+    }
+
+    return $return_object
+}
+
+###
 ### MAIN SCRIPT
 ###
 try
@@ -191,6 +338,7 @@ try
             {
                 Rename-Computer -NewName "$($newDeviceName)" -Restart:$false -Force
                 Write-Logging -Value "|__ New device name set successfully"
+                Invoke-DeviceRestart | Out-Null
             }
             else
             {
