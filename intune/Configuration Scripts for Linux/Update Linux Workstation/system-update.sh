@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 #
 ## basic information:
@@ -55,7 +55,10 @@ if which apt-get > /dev/null; then
 
         echo "|__ fix broken dependencies"
         /usr/bin/apt --fix-broken install
-        
+
+        echo "|__ remove unused kernels"
+        /usr/bin/apt-get -y purge $(/usr/bin/dpkg --list | /usr/bin/grep 'linux-image-.*-generic' | /usr/bin/grep '^rc' | /usr/bin/awk '{print $2}' | /usr/bin/sort -u)
+
         echo "|__ run system upgrade by apt-get"
         /usr/bin/apt-get -y upgrade && /usr/bin/apt-get -y autoremove && /usr/bin/apt-get -y autoclean
     else
