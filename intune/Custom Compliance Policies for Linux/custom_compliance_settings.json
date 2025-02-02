@@ -1,0 +1,88 @@
+{
+    "Rules": [
+        {
+            "SettingName": "APT_installed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "APT not installed",
+                    "Description": "Your computer doesn't have installed APT.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "APT_isOK",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "APT update failure",
+                    "Description": "Your computer raised a warning or error during 'apt-get update' process.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "linux_host_name",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "OK",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "Computer name doesn't meet the naming convention",
+                    "Description": "Your computer name doesn't meet the naming convention and needs to be changed.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "MDATP_installed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP not installed",
+                    "Description": "Your computer doesn't have installed Microsoft Defender.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "MDATP_licensed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP not licensed",
+                    "Description": "Your computer doesn't have a licensed Microsoft Defender installation.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "MDATP_version",
+            "Operator": "GreaterThan",
+            "DataType": "Version",
+            "Operand": "101.24000.0",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "MDATP version too old",
+                    "Description": "Your computer has installed a old Microsoft Defender version.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        }
+    ]
+}

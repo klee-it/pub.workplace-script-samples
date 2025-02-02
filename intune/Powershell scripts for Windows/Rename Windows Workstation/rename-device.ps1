@@ -2,6 +2,9 @@
 ## basic information:
 ## |__ This script renames the device to a defined naming convention.
 #
+## Supported PowerShell versions:
+## |__ v5.1
+#
 ## location: all client devices
 #
 ## restrictions:
@@ -26,23 +29,27 @@ $script:LogOptionAppend      = $false
 ###
 function Write-Logging
 {
+    [OutputType([System.Management.Automation.PSObject])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(
-      [Parameter(Mandatory=$false)]
-      [String] $Value  = '',
+        [Parameter(Mandatory=$false)]
+        [String] $Value = '',
 
-      [Parameter(Mandatory=$false)]
-      [ValidateSet('None', 'Error', 'Host', 'Output', 'Warning')]
-      [String] $StdOut = 'Host',
+        [Parameter(Mandatory=$false)]
+        [String] $Module = '',
 
-      [Parameter(Mandatory=$false)]
-      [HashTable] $OptionsSplat = @{}
+        [Parameter(Mandatory=$false)]
+        [ValidateScript({$_ -eq -1 -or $_ -match "^\d+$"})]
+        [int] $Level = -1,
+
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('None', 'Host', 'Warning')]
+        [String] $StdOut = 'Host',
+
+        [Parameter(Mandatory=$false)]
+        [HashTable] $OptionsSplat = @{}
     )
-    
-    # set function parameters
-    $ErrorActionPreference = 'Stop'
-    $return_code = $True
     
     try
     {
@@ -53,26 +60,34 @@ function Write-Logging
             New-Item -Path "$($FilePath)" -ItemType "Directory" -Force | Out-Null
         }
         
-        $FileName       = "$($script:LogFileName)"
-        $File           = "$($FilePath)\$($FileName)"
+        $File   = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
+        $prefix = ''
         
-        $datetime       = "$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")"
-        $hostname       = "$($env:computername)"
-        $username       = "$($env:UserName)"
-        $userdomain     = "$($env:UserDomain)"
+        # set prefix
+        switch ($Level)
+        {
+            # default level
+            -1 { $prefix = '' }
+            # root level
+            0  { $prefix = '# ' }
+            # sub level
+            default { $prefix = "$((1..$($Level) | ForEach-Object { "|__" }) -join '') " }
+        }
         
+        # set log message
+        $logMessage = "$($prefix)$($Value)"
+        $logDetails = "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
+
         # write to stdout
         switch ($StdOut)
         {
-            'Error'       { $OptionsSplat['Message'] = "$($Value)"; Write-Error @OptionsSplat }
-            'Host'        { $OptionsSplat['Object'] = "$($Value)"; Write-Host @OptionsSplat }
-            'Output'      { $OptionsSplat['InputObject'] = "$($Value)"; Write-Output @OptionsSplat }
-            'Warning'     { $OptionsSplat['Message'] = "$($Value)"; Write-Warning @OptionsSplat }
+            'Host'        { $OptionsSplat['Object'] = "$($logMessage)"; Write-Host @OptionsSplat }
+            'Warning'     { $OptionsSplat['Message'] = "$($logMessage)"; Write-Warning @OptionsSplat }
             default       { break }
         }
 
         # check size of log file
-        if (Test-Path -Path "$($File)" -PathType Leaf)
+        if (Test-Path -Path "$($File)" -PathType 'Leaf')
         {
             # if max size reached, create new log file
             if ((Get-Item -Path "$($File)").length -gt 10Mb)
@@ -97,28 +112,25 @@ function Write-Logging
             # write log line
             if (-Not ( [string]::IsNullOrEmpty($script:LogStream) ) )
             {
-                $script:LogStream.WriteLine("[$datetime] [$hostname] [$username] [$userdomain] $Value")
+                $script:LogStream.WriteLine("$($logDetails) $($logMessage)")
             }
             else
             {
                 throw "Log stream failed to load"
             }
         }
+
+        # clean-up
+        Get-Variable -Name 'FilePath' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'File' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'prefix' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'logMessage' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'logDetails' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
     catch
     {
-        Write-Host "### ERROR: $($MyInvocation.MyCommand) ###"
-        $return_code = $($_.Exception.HResult)
-        Write-Host "Message: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
-        Write-Host "### ERROR END ###"
-        exit $return_code
+        Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }
-    finally
-    {
-        $ErrorActionPreference = 'Continue' # default value
-    }
-
-    #return $return_code
 }
 
 ###
@@ -126,12 +138,12 @@ function Write-Logging
 ###
 Function Set-ClientTlsProtocols
 {
+    [OutputType([System.Management.Automation.PSObject])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
+
+    param()
     
     # set function parameters
-    $ErrorActionPreference = 'Stop'
-    $return_code = $True
-    
     try
     {
         # find and include all available protocols 'Tls12' or higher
@@ -143,17 +155,8 @@ Function Set-ClientTlsProtocols
     }
     catch
     {
-        Write-Logging -Value "### ERROR: $($MyInvocation.MyCommand) ###"
-        $return_code = $($_.Exception.HResult)
-        Write-Logging -Value "Message: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
-        Write-Logging -Value "### ERROR END ###"
+        Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }
-    finally
-    {
-        $ErrorActionPreference = 'Continue' # default value
-    }
-
-    return $return_code
 }
 
 ###

@@ -1,0 +1,18 @@
+{
+    "Rules": [
+        {
+            "SettingName": "windows_host_name",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "OK",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "Computer name doesn't meet the naming convention",
+                    "Description": "Your computer name doesn't meet the naming convention and needs to be changed.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        }
+    ]
+}

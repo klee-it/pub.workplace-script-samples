@@ -1,14 +1,15 @@
 #!/bin/bash
 
 #
-## basic information:
-## |__ This script renames the device to follow naming convention.
-#
 ## location: all client devices
 #
 ## restrictions:
 ## |__ Ubuntu v20.04
 ## |__ Ubuntu v22.04
+## |__ Ubuntu v24.04
+#
+## dependencies:
+## |__ MS Edge
 #
 
 distroName=''
@@ -63,36 +64,40 @@ if [ "$distroName" != '' ] && [ "$distroVersion" != '' ] && [ "$distroCodeName" 
         echo "# Current script location: $(pwd)"
         echo 
 
-        # get current hostname
-        COMPUTERNAME=$(hostname | tr "[:lower:]" "[:upper:]")
-        echo "# Current computer name: $COMPUTERNAME"
+        # Remove intune-portal related apps
+        if which intune-portal > /dev/null; then
+            echo "# Remove intune-portal related apps"
+            /usr/bin/apt-get remove --purge -y intune-portal microsoft-edge-stable microsoft-identity-broker microsoft-identity-diagnostics
 
-        ### Check if current computer name matches naming convention
-        if [[ ! "$COMPUTERNAME" =~ ^[a-zA-Z]{3}-[a-zA-Z0-9]{7,}$ ]]; then
-            if [[ "$COMPUTERNAME" =~ ^[a-zA-Z]{3}-.*$ ]]; then
+            # Remove intune-portal related folders
+            echo "# Remove intune-portal related folders"
+            /usr/bin/rm -r /home/*/.cache/intune-portal
+            /usr/bin/rm -r /home/*/.config/intune
+            /usr/bin/rm -r /home/*/.config/microsoft-identity-broker
+            /usr/bin/rm -r /home/*/.local/state/microsoft-identity-broker
+            /usr/bin/rm -r /var/lib/microsoft-identity-broker
+            /usr/bin/rm -r /run/intune
+            /usr/bin/rm -r /opt/microsoft/identity-broker
+            /usr/bin/rm -r /opt/microsoft/intune
+            /usr/bin/rm -r /opt/microsoft/microsoft-identity-diagnostics
+            /usr/bin/rm -r /opt/microsoft/msedge
 
-                # set new hostname
-                NEWCOMPUTERNAME=$(echo "$(echo "$COMPUTERNAME" | cut -c 1-3)-$(dmidecode -s system-serial-number)" | tr "[:lower:]" "[:upper:]")
-                echo "# New computer name: $NEWCOMPUTERNAME"
-
-                if [[ "$NEWCOMPUTERNAME" =~ ^[a-zA-Z]{3}-[a-zA-Z0-9]{7,}$ ]]; then
-                    # set new hostname
-                    hostnamectl set-hostname ${NEWCOMPUTERNAME}
-                    echo "|__ New computer name set successfully"
-                else
-                    echo "|__ New computer name does not fit naming convention - maybe because of virtual machine or other reasons"
-                fi
-            else
-                echo "|__ Current computer name miss location shortcut"
-            fi
-        else
-            echo "|__ Computer name already fits naming convention"
+            # Remove symlink for autostart
+            echo "# Remove application from autostart"
+            /usr/bin/rm /etc/xdg/autostart/intune-portal.desktop
         fi
     else
         echo "# Distro not supported"
     fi
     echo
 
+    # If installation is done, add post-installation tasks
+    if which intune-portal > /dev/null; then
+        echo "# MS Intune App installed"
+    else
+        echo "# MS Intune App is not installed"
+    fi
+    echo
 else
     echo "# Linux system/distribution not supported"
 fi
