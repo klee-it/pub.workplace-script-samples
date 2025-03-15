@@ -1,9 +1,48 @@
+<#
+.SYNOPSIS
+    Generates a new random secure string.
+
+.DESCRIPTION
+    This function generates a new random secure string with the specified length and character composition.
+    It allows specifying the number of uppercase, lowercase, numeric, and special characters in the secure string.
+
+.PARAMETER Length
+    The length of the secure string. This parameter is mandatory.
+
+.PARAMETER Upper
+    The number of uppercase characters in the secure string. This parameter is optional and defaults to 2.
+
+.PARAMETER Lower
+    The number of lowercase characters in the secure string. This parameter is optional and defaults to 2.
+
+.PARAMETER Numeric
+    The number of numeric characters in the secure string. This parameter is optional and defaults to 2.
+
+.PARAMETER Special
+    The number of special characters in the secure string. This parameter is optional and defaults to 2.
+
+.OUTPUTS
+    [System.String]
+        The generated secure string.
+
+.EXAMPLE
+    PS> New-RandomSecureString -Length 24
+
+.EXAMPLE
+    PS> New-RandomSecureString -Length 24
+    PS> Set-ADAccountPassword -Identity "<ad-user>" -Reset -NewPassword (ConvertTo-SecureString -AsPlainText "$( New-RandomSecureString -Length 24 )" -Force)
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: generate new random secure string
 ###
 Function New-RandomSecureString
 {
-    [OutputType([System.Management.Automation.PSObject])]
+    [OutputType([System.String])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(
@@ -86,7 +125,7 @@ Function New-RandomSecureString
             $secureString = New-RandomSecureString -Length $Length -Upper $Upper -Lower $Lower -Numeric $Numeric -Special $Special
         }
         
-        Write-Output -InputObject $secureString
+        Write-Output -InputObject "$($secureString)"
     }
     catch
     {

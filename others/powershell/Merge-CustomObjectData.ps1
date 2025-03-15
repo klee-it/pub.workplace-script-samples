@@ -1,3 +1,37 @@
+<#
+.SYNOPSIS
+    Merges a default object with a custom object and returns a new full object with all fields.
+
+.DESCRIPTION
+    This function merges a default object with a custom object and returns a new full object with all fields.
+    It allows specifying whether to overwrite arrays and whether to only merge empty objects.
+
+.PARAMETER DefaultObject
+    The default object to merge. This parameter is mandatory.
+
+.PARAMETER CustomObject
+    The custom object to merge. This parameter is mandatory.
+
+.PARAMETER OverwriteArrays
+    A switch to indicate whether to overwrite arrays. Default is false. This parameter is optional.
+
+.PARAMETER OnlyEmptyObjects
+    A switch to indicate whether to only merge empty objects. Default is false. This parameter is optional.
+
+.OUTPUTS
+    [PSCustomObject]
+        The merged object with all fields.
+
+.EXAMPLE
+    PS> $default = [PSCustomObject]@{ Name = 'John'; Age = 30 }
+    PS> $custom = [PSCustomObject]@{ Age = 25; City = 'New York' }
+    PS> Merge-CustomObjectData -DefaultObject $default -CustomObject $custom
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: merge default object with custom object and return new full object with all fields
 ###

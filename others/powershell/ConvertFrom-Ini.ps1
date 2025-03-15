@@ -1,14 +1,39 @@
+<#
+.SYNOPSIS
+    Converts an INI file to a HashTable.
+
+.DESCRIPTION
+    This function reads an INI file and converts its contents into a HashTable.
+    It processes each line of the INI file, ignoring comments and empty lines,
+    and organizes the data into a structured HashTable format.
+
+.PARAMETER Path
+    Specifies the path to the INI file that the function will process.
+    The path must point to an existing file.
+
+.OUTPUTS
+    [System.Collections.Hashtable]
+        The converted INI file as a HashTable.
+
+.EXAMPLE
+    PS> ConvertFrom-Ini -Path "C:\example.ini"
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: convert an ini file to a HashTable
 ###
 Function ConvertFrom-Ini
 {
-    [OutputType([System.Management.Automation.PSObject])]
+    [OutputType([System.Collections.Hashtable])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(
         [Parameter(Mandatory=$true)]
-        [ValidateScript({Test-Path -Path $_ -PathType Leaf})]
+        [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
         [string]$Path
     )
     

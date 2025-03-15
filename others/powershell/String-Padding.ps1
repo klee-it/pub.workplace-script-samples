@@ -1,10 +1,41 @@
+<#
+.SYNOPSIS
+    Pads a string on the left, right, or both sides.
+
+.DESCRIPTION
+    This function pads a string on the left, right, or both sides with a specified character to a specified length.
+
+.PARAMETER Value
+    The string to be padded. This parameter is mandatory.
+
+.PARAMETER FieldLength
+    The total length of the output string, including the padding. Default is 20.
+
+.PARAMETER ToAppend
+    The character to use for padding. Default is a space (' ').
+
+.PARAMETER Justification
+    Specifies whether to pad the string on the left, right, or both sides. Valid values are 'Left', 'Right', and 'Both'. Default is 'Right'.
+
+.OUTPUTS
+    [System.String]
+        The padded string.
+
+.EXAMPLE
+    PS> String-Padding -Value "test" -FieldLength 6 -ToAppend " " -Justification 'Right'
+    Output: "test  "
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: padding string left or right side
-### |_ String-Padding -Value 'test' -FieldLength 6 -ToAppend ' ' -Justification 'Right'
 ###
 function String-Padding
 {
-    [OutputType([System.Management.Automation.PSObject])]
+    [OutputType([System.String])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(

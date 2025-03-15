@@ -1,3 +1,32 @@
+<#
+.SYNOPSIS
+    This script performs a check to confirm if there is an active internet connection.
+
+.DESCRIPTION
+    This script attempts to connect to a well-known website (e.g., google.com) to determine if there is an active internet connection. It returns a boolean value indicating the presence or absence of an internet connection.
+
+.PARAMETER FQDN
+    The FQDN to test the internet connection against. Default is "http://www.google.com".
+
+.OUTPUTS
+    [PSCustomObject]
+        - IsConnected: A boolean value indicating if the internet connection is available.
+        - VerifiedHost: The FQDN that was tested.
+
+.EXAMPLE
+    PS> Confirm-InternetConnection
+    True
+
+    PS> Confirm-InternetConnection -FQDN "http://www.bing.com"
+    True
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+    Additional information: This function requires internet access to perform the check.
+    Dependencies: Set-ClientTlsProtocols
+#>
+
 ###
 ### FUNCTION: check if internet connection is available
 ###
@@ -34,8 +63,10 @@ Function Confirm-InternetConnection
         $IsConnected = Test-Connection @TestConnectionSplat
         Write-Verbose -Message "Is connected: $($IsConnected)"
 
+        # return output object
         Write-Output -InputObject ( [PSCustomObject]@{ IsConnected = $IsConnected; VerifiedHost = $FQDN } )
 
+        # clean-up
         Get-Variable -Name 'IsConnected' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
     catch

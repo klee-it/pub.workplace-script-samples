@@ -1,9 +1,51 @@
+<#
+.SYNOPSIS
+    Parses a PromQL string.
+
+.DESCRIPTION
+    This function takes various parameters related to a Prometheus metric and generates a PromQL string.
+    The PromQL string can be used to query Prometheus metrics.
+
+.PARAMETER MetricName
+    The name of the metric. This parameter is mandatory.
+
+.PARAMETER MetricLabels
+    The labels associated with the metric. This can be a Hashtable or a PSCustomObject. This parameter is optional.
+
+.PARAMETER MetricValue
+    The value of the metric. This parameter is mandatory.
+
+.PARAMETER MetricType
+    The type of the metric. Valid values are 'counter', 'gauge', 'histogram', and 'summary'. Default is 'gauge'. This parameter is optional.
+
+.PARAMETER MetricHelp
+    The help text for the metric. Default is 'No help available.'. This parameter is optional.
+
+.PARAMETER SkipHeader
+    A switch to indicate whether to skip the metric header in the output. Default is false. This parameter is optional.
+
+.OUTPUTS
+    [System.String]
+        The generated PromQL string.
+
+.EXAMPLE
+    ConvertTo-PromQL -MetricName 'http_requests_total' -MetricValue '1027'
+
+.EXAMPLE
+    PS> $labels = @{method='get'; code='200'}
+    PS> ConvertTo-PromQL -MetricName 'http_requests_total' -MetricLabels $labels -MetricValue '1027'
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: parse PromQL string
 ###
 function ConvertTo-PromQL
 {
-    [OutputType([System.Management.Automation.PSObject])]
+    [OutputType([System.String])]
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(

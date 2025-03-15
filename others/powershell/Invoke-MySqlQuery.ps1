@@ -1,12 +1,36 @@
+<#
+.SYNOPSIS
+    Executes a MySQL query.
+
+.DESCRIPTION
+    This function executes a MySQL query using the provided connection string and query string.
+    It returns the result of the query.
+
+.PARAMETER Query
+    The SQL query to be executed. This parameter is mandatory.
+
+.PARAMETER ConnectionString
+    The connection string to the MySQL database. This parameter is mandatory.
+
+.PARAMETER Driver
+    The path to the MySQL Connector/NET driver. This parameter is optional and defaults to "C:\Program Files (x86)\MySQL\MySQL Connector NET 9.1\MySql.Data.dll".
+
+.OUTPUTS
+    [System.Management.Automation.PSObject]
+        The result of the executed query.
+
+.EXAMPLE
+    PS> Invoke-MySqlQuery -Query "SHOW TABLES" -ConnectionString 'server=<fqdn>;user id=<username>;password=<password>;database=<database>;pooling=false'
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+    Dependencies: MySQL Connector/NET => https://dev.mysql.com/downloads/connector/net/
+#>
+
 ###
 ### FUNCTION: invoke a mysql query
 ###
-# Requires:
-# |__ MySQL Connector/NET => https://dev.mysql.com/downloads/connector/net/
-# Example:
-# |__ Query: "SHOW TABLES"
-# |__ ConnectionString: 'server=<fqdn>;user id=<username>;password=<password>;database=<database>;pooling=false'
-
 function Invoke-MySqlQuery
 {
     [OutputType([System.Management.Automation.PSObject])]

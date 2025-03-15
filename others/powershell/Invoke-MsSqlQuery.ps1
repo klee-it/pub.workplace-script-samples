@@ -1,10 +1,32 @@
+<#
+.SYNOPSIS
+    Executes a MS SQL query.
+
+.DESCRIPTION
+    This function executes a MS SQL query using the provided connection string and query string.
+    It returns the result of the query as a DataTable.
+
+.PARAMETER Query
+    The SQL query to be executed. This parameter is mandatory.
+
+.PARAMETER ConnectionString
+    The connection string to the MS SQL database. This parameter is mandatory.
+
+.OUTPUTS
+    [System.Management.Automation.PSObject]
+        The result of the executed query.
+
+.EXAMPLE
+    PS> Invoke-MsSqlQuery -Query "SELECT GETDATE()" -ConnectionString "Data Source=<fqdn>; User ID=<username>; Password=<password>; Initial Catalog=<database>"
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: invoke a MS SQL query
 ###
-# Example:
-# |__ Query: "Select getdate()"
-# |__ ConnectionString: "Data Source=<fqdn>; User ID=<username>; Password=<password>; Initial Catalog=<database>"
-
 function Invoke-MsSqlQuery
 {
     [OutputType([System.Management.Automation.PSObject])]

@@ -1,3 +1,26 @@
+<#
+.SYNOPSIS
+    Converts a PromQL string into a PowerShell object.
+
+.DESCRIPTION
+    This PowerShell function parses a PromQL string and converts it into a PowerShell object. The function extracts the header information (if present) and the metric data, including metric name, labels, and value.
+
+.PARAMETER PromQLString
+    The PromQL string to be converted.
+
+.OUTPUTS
+    [PSCustomObject]
+        - Header: Contains MetricHelpName, MetricHelpText, MetricTypeName, MetricTypeValue.
+        - Data: Contains MetricName, MetricLabels, MetricValue.
+
+.EXAMPLE
+    PS> ConvertFrom-PromQL -PromQLString '# HELP http_requests_total The total number of HTTP requests.\n# TYPE http_requests_total counter\nhttp_requests_total{method="post",code="200"} 1027'
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: parse PromQL string
 ###

@@ -1,3 +1,35 @@
+<#
+.SYNOPSIS
+    Gets a normalized version string which can be used for version comparison.
+
+.DESCRIPTION
+    This function takes a version string as input and normalizes it by removing non-numeric characters and trimming ending zeros.
+    It returns a normalized version string that can be used for version comparison.
+
+.PARAMETER Value
+    The version string to be normalized. This parameter is optional and defaults to an empty string.
+
+.OUTPUTS
+    [System.String]
+        The normalized version string.
+
+.EXAMPLE
+    PS> Get-NormalizedVersion -Value '1.0.0-beta'
+    1.0
+
+.EXAMPLE
+    PS> Get-NormalizedVersion -Value '2.3.4.0'
+    2.3.4
+
+.EXAMPLE
+    PS> Get-NormalizedVersion -Value '2.0'
+    2.0
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+#>
+
 ###
 ### FUNCTION: Get normalized version string which can be used for version comparison
 ###
@@ -45,12 +77,12 @@ Function Get-NormalizedVersion
             # check if normalized value is in format major.minor(.patch)(.build)
             elseif ( $normalizedValue -notmatch '^\d+\.\d+(?:\.\d+)?(?:\.\d+)?$' )
             {
-                Write-Warning -Message "Normalized value is not in format major.minor. Add missing minor part."
+                Write-Verbose -Message "Normalized value is not in format major.minor. Add missing minor part."
                 $OutputString = "$($normalizedValue).0"
             }
             else
             {
-                Write-Warning -Message "$($MyInvocation.MyCommand)" -Value "Normalized value is in format major.minor(.patch)(.build)."
+                Write-Verbose -Message "Normalized value is in format major.minor(.patch)(.build)."
                 $OutputString = "$($normalizedValue)"
             }
 

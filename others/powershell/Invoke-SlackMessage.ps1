@@ -1,13 +1,73 @@
-```powershell
+<#
+.SYNOPSIS
+    Sends a message to a Slack channel using a webhook URL or Slack API.
+
+.DESCRIPTION
+    This function sends a message to a Slack channel using the specified webhook URL or Slack API. 
+    It allows specifying the message content, including images, text blocks, and fact sets.
+
+.PARAMETER Token
+    The Slack API token to use for sending the message. This parameter is mandatory when using the Slack API.
+
+.PARAMETER ChannelId
+    The ID of the Slack channel to send the message to. This parameter is mandatory when using the Slack API.
+
+.PARAMETER URL
+    The webhook URL to use for sending the message. This parameter is mandatory when using the webhook.
+
+.PARAMETER Message
+    The message content to be sent. This parameter is mandatory and should be an array of PSCustomObject.
+
+.OUTPUTS
+    [System.Management.Automation.PSObject]
+        - The response from the Slack webhook or API.
+
+.EXAMPLE
+    PS> $MsTeamsSplat = @{
+        URL = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+        Message = @(
+            [PSCustomObject]@{
+                type = "Image"
+                url = "https://anywebsite.com/image.png"
+                height = "30px"
+                altText = "Problem report"
+            },
+            [PSCustomObject]@{
+                type = "TextBlock"
+                text = "**TEST POST**"
+                style = "heading"
+            },
+            [PSCustomObject]@{
+                type = "FactSet"
+                facts = @(
+                    [PSCustomObject]@{
+                        title = "Powershell"
+                        value = "is cool"
+                    },
+                    [PSCustomObject]@{
+                        title = "Slack API"
+                        value = "is awesome"
+                    }
+                )
+            }
+        )
+    }
+    PS> Invoke-SlackMessage @MsTeamsSplat
+
+.NOTES
+    Author: klee-it
+    PowerShell Version: 5.1, 7.x
+    Documentation:
+    - Chat.PostMessage: https://api.slack.com/methods/chat.postMessage
+    - Rate Limits: https://api.slack.com/apis/rate-limits
+    - List of Errors: https://api.slack.com/methods/chat.postMessage#errors
+    Dependencies:
+    - App must be installed in the workspace and have the necessary permissions.
+    - App must be added to the channel or group where the message will be posted. (Scope: chat.write)
+#>
+
 ###
 ### FUNCTION: invoke Slack message
-### |_ App must be installed in the workspace and have the necessary permissions.
-### |_ App must be added to the channel or group where the message will be posted. (Scope: chat.write)
-### |_ Option 1: Incoming WebHooks
-### |_ Option 2: Slack API (chat.postMessage)
-### |_|_ chat.postMessage: https://api.slack.com/methods/chat.postMessage
-### |_|_ rate limits: https://api.slack.com/apis/rate-limits
-### |_|_ list of errors: https://api.slack.com/methods/chat.postMessage#errors
 ###
 Function Invoke-SlackMessage
 {
@@ -99,4 +159,3 @@ Function Invoke-SlackMessage
         Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }
 }
-```
