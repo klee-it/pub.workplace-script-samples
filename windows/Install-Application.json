@@ -1,0 +1,51 @@
+{
+    "_version": "2025-01-09",
+    "application": {
+        "display_name": "",
+        "version": "",
+        "install_path": [],
+        "exec_name": "",
+        "registry_name": "",
+        "registry_exclusion_name": "",
+        "registry_exclusion_uninstall_string": ""
+    },
+    "main_setup": {
+        "file": "",
+        "arguments": [],
+        "parameters": {
+            "Wait": true,
+            "NoNewWindow": true
+        },
+        "sleep": "no"
+    },
+    "setup_parameter": {
+        "check_other_installation": "yes",
+        "check_other_installation_by": "registry",
+        "replace_other_installation": "no"
+    },
+    "pre_setup": {
+        "enabled": "no",
+        "file": "pre-script.ps1",
+        "arguments": "",
+        "parameters": {
+            "Wait": true,
+            "NoNewWindow": true
+        },
+        "sleep": "no"
+    },
+    "post_setup": {
+        "enabled": "no",
+        "file": "post-script.ps1",
+        "arguments": "",
+        "parameters": {
+            "Wait": true,
+            "NoNewWindow": true
+        },
+        "sleep": "no"
+    },
+    "file_download": {
+        "enabled": "no",
+        "url": "",
+        "filename": ""
+    }
+}

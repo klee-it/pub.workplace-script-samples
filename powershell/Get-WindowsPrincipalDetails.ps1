@@ -54,7 +54,7 @@ function Get-WindowsPrincipalDetails
             Groups = $WindowsPrincipal.Identity.Groups
         }
 
-        # get true/false if user has admin permissions or not
+        # return output info
         Write-Output -InputObject $outputInfo
     }
     catch
