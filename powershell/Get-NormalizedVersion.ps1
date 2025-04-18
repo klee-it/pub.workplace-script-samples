@@ -66,9 +66,9 @@ Function Get-NormalizedVersion
         else
         {
             # $normalizedValue = "$($Value -replace '[\D]', '.')".TrimEnd('.0') # TrimEnd() replaces all specified characters, but not as "word"
-            $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' )"
+            $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' -replace '\.0$', '' )"
             Write-Verbose -Message "Normalized value: '$($normalizedValue)'"
-
+    
             # check if normalized value is empty
             if ( [String]::IsNullOrEmpty($normalizedValue) )
             {

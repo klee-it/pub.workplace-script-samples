@@ -32,6 +32,11 @@
     ----                           -----
     http://169.254.169.254/latest/meta-data/instance-id i-00000000000000000
 
+    PS> Get-AwsEC2MetaData -ImdsVersion "LocalSSM"
+    Name                           Value
+    ----                           -----
+    get-instance-information        @{instanceId=i-00000000000000000; region=us-east-1; accountId=000000000000}
+
     PS> Get-AwsEC2MetaData -SubUrls @('meta-data/instance-id', 'meta-data/ami-id')
     Name                           Value
     ----                           -----
@@ -42,6 +47,8 @@
     Author: klee-it
     PowerShell Version: 5.1, 7.x
     Additional information: This function requires the script to be executed on an AWS EC2 instance.
+    Metadata Urls:
+    - http://169.254.169.254/latest/dynamic/instance-identity/document
 #>
 
 ###
@@ -62,7 +69,7 @@ Function Get-AwsEC2MetaData
         [String[]] $SubUrls = @('meta-data/instance-id'),
 
         [Parameter(Mandatory=$false)]
-        [ValidateSet('IMDSv1', 'IMDSv2')]
+        [ValidateSet('IMDSv1', 'IMDSv2', 'LocalSSM')]
         [String] $ImdsVersion = 'IMDSv1'
     )
 
@@ -73,6 +80,19 @@ Function Get-AwsEC2MetaData
         
         foreach ($ApiUrl in $SubUrls)
         {
+            # local SSM
+            if ($ImdsVersion -eq 'LocalSSM')
+            {
+                try
+                {
+                    $outputInfo['get-instance-information'] = & 'C:\Program Files\Amazon\SSM\ssm-cli.exe' get-instance-information
+                }
+                catch
+                {
+                    Write-Warning "Failed to retrieve instance ID using Local SSM."
+                }
+            }
+
             # IMDSv1
             if ($ImdsVersion -eq 'IMDSv1')
             {

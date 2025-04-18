@@ -58,7 +58,7 @@ Function Confirm-InternetConnection
             Count = 3
         }
         $TestConnectionSplat = $DefaultParameters + $AdditionalParameters
-        Write-Verbose -Message "Splat: $($TestConnectionSplat | ConvertTo-Json -Compress)" -StdOut 'None'
+        Write-Verbose -Message "Splat: $($TestConnectionSplat | ConvertTo-Json -Compress)"
 
         $IsConnected = Test-Connection @TestConnectionSplat
         Write-Verbose -Message "Is connected: $($IsConnected)"
