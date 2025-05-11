@@ -1,0 +1,52 @@
+groups:
+- name: Linux
+  rules:
+  - alert: LinuxExporterDown
+    expr: (up{instance=~".*:9100"} == 0)
+    for: 5m
+    labels:
+      severity: critical
+      ostype: linux
+    annotations:
+      summary: 'LinuxExporterDown on {{ $labels.fqdn }}'
+      description: 'Linux Exporter is down on {{ $labels.fqdn }}{{"\n"}}Either is only exporter down or the whole server.{{"\n"}}Check ASAP'
+
+  - alert: LinuxCpuUsage
+    expr: (100 - (avg(irate(node_cpu_seconds_total{mode="idle"}[5m])) BY (fqdn,server_status,role) * 100)) > 90
+    for: 10m
+    labels:
+      severity: critical
+      ostype: linux
+    annotations:
+      description: '{{$labels.fqdn}}: CPU usage is above 90% (current value is: {{ $value }})'
+      summary: '{{$labels.fqdn}}: High CPU usage detected'
+
+  - alert: LinuxMemoryUsage
+    expr: (((node_memory_MemTotal_bytes - node_memory_MemFree_bytes - node_memory_Cached_bytes) / node_memory_MemTotal_bytes * 100)) > 95
+    for: 30m
+    labels:
+      severity: critical
+      ostype: linux
+    annotations:
+      description: '{{$labels.fqdn}}: Memory usage is above 95% (current value is: {{ $value }})'
+      summary: '{{$labels.fqdn}}: High memory usage detected'
+
+  - alert: LinuxDiskSpaceLess20
+    expr: (100 * node_filesystem_free_bytes{fstype!~"nfs"} / node_filesystem_size_bytes{fstype!~"nfs"} < 20) AND (node_filesystem_free_bytes{mountpoint!~"/etc/.*|/var/run/secrets/.*|/host/sys/.*",fstype!~"nfs|tmpfs"} < 1e10)
+    for: 60m
+    labels:
+      severity: warning
+      ostype: linux
+    annotations:
+      description: '{{$labels.fqdn}}: Disk space less 20 percent on {{$labels.mountpoint}}'
+      summary: '{{$labels.fqdn}}: Free disk space warning'
+
+  - alert: LinuxDiskSpaceLess5
+    expr: (100 * node_filesystem_free_bytes{fstype!~"nfs"} / node_filesystem_size_bytes{fstype!~"nfs"} < 5)
+    for: 5m
+    labels:
+      severity: critical
+      ostype: linux
+    annotations:
+      description: '{{$labels.fqdn}}: Free disk space less 5 percent on {{$labels.mountpoint}}'
+      summary: '{{$labels.fqdn}}: Free disk space critical'

@@ -1,0 +1,260 @@
+groups:
+- name: Windows
+  rules:
+  - alert: WindowsExporterDown
+    expr: (up{instance=~".*:9182"} == 0)
+    for: 15m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'WindowsExporterDown on {{ $labels.fqdn }}'
+      description: 'Windows Exporter is down on {{ $labels.fqdn }}{{"\n"}}Either is only exporter down or the whole server.{{"\n"}}Check ASAP'
+
+  - alert: WindowsCpuUsage
+    expr: (100 - (avg (irate(windows_cpu_time_total{mode="idle"}[5m])) without (core, mode) * 100) > 95)
+    for: 60m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsCpuUsage on {{ $labels.fqdn }}'
+      description: 'CPU Usage is more than 95%{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsMemoryUsage
+    expr: (100*(windows_memory_physical_free_bytes) / windows_memory_physical_free_bytes < 5)
+    for: 60m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsMemoryUsage on {{ $labels.fqdn }}'
+      description: 'Memory Usage is more than 95%{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsSystemDiskSpaceUsage
+    expr: ((windows_logical_disk_size_bytes{volume="C:"} - windows_logical_disk_free_bytes{volume="C:"}) / windows_logical_disk_size_bytes{volume="C:"} * 100 > 90)
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'WindowsSystemDiskSpaceUsage on {{ $labels.fqdn }}'
+      description: 'Disk Space on Drive ({{ $labels.volume }}) is used more than 90%{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsDiskSpaceUsage
+    expr: ((windows_logical_disk_size_bytes{volume!~"(Harddisk|C).*"} - windows_logical_disk_free_bytes{volume!~"(Harddisk|C).*"}) / windows_logical_disk_size_bytes{volume!~"(Harddisk|C).*"} * 100 > 90)
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsDiskSpaceUsage on {{ $labels.fqdn }}'
+      description: 'Disk Space on Drive ({{ $labels.volume }}) is used more than 90%{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsServiceStatus
+    expr: windows_service_status{status="ok"} !=1
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'WindowsServiceStatus on {{ $labels.fqdn }}'
+      description: 'Windows Service state is not OK{{"\n"}}ServiceName: {{ $labels.name }}{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsNetworkUsage
+    expr: ((rate(windows_net_bytes_total[5m]) * 8 / windows_net_current_bandwidth * 100) > 90)
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsNetworkUsage on {{ $labels.fqdn }}'
+      description: 'High network utilization on nic = {{ $labels.nic }}{{"\n"}}VALUE = {{ $value }}'
+
+  - alert: WindowsLicenseStatus
+    expr: custom_windows_license_status != 1
+    for: 5m
+    labels:
+      severity: info
+      ostype: windows
+    annotations:
+      summary: 'Windows license missing on {{ $labels.fqdn }}'
+      description: 'status = {{ $value }}'
+
+  - alert: WindowsLicenseExpireDays
+    expr: custom_windows_license_expire_days < 10
+    for: 5m
+    labels:
+      severity: info
+      ostype: windows
+    annotations:
+      summary: 'Windows license will expire on {{ $labels.fqdn }}'
+      description: 'days = {{ $value }}'
+
+  - alert: WindowsRebootRequired
+    expr: custom_windows_pending_reboot_status != 0
+    for: 5m
+    labels:
+      severity: info
+      ostype: windows
+    annotations:
+      summary: 'Pending reboot on {{ $labels.fqdn }}'
+      description: 'status = {{ $value }}'
+
+  - alert: WindowsCertificateStatus
+    expr: custom_local_certificates{CertLocation="LocalMachine"} < 10
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsCertificateStatus on {{ $labels.fqdn }}'
+      description: 'Certificate expires in: {{ $value }} day(s){{"\n\n"}}LABELS: {{ $labels }}'
+
+  - alert: WindowsUpdateServiceDisabled
+    expr: windows_service_start_mode{name="wuauserv", start_mode="disabled"} == 1
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsUpdateServiceDisabled on {{ $labels.fqdn }}'
+      description: "Service 'Windows Update' [{{ $labels.name }}] is currently disabled, please enable the service asap"
+
+  - alert: WindowsUpdateScriptStatus
+    expr: custom_windowsupdatescript_success != 0
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'WindowsUpdateScriptStatus on {{ $labels.fqdn }}'
+      description: "Kace script 'local-manage-windows-server-updates.ps1' execution failed"
+
+  - alert: WindowsScheduledTaskFailure
+    expr: windows_scheduled_task_last_result{} == 0 and on (instance, task) windows_scheduled_task_state{state="disabled"} == 0 and on (instance, task) windows_scheduled_task_state{state="running"} == 0
+    for: 2h
+    labels:
+      severity: info
+      ostype: windows
+    annotations:
+      summary: 'WindowsScheduledTaskFailure on {{ $labels.fqdn }}'
+      description: "Scheduled task '{{ $labels.task }}' failed on last run"
+
+  - alert: WindowsUpdatePendingInfo
+    expr: windows_update_pending_info{title!~"(?:Security Intelligence Update for (?:Windows Defender Antivirus|Microsoft Defender Antivirus|Microsoft Security Essentials)|Windows Malicious Software Removal Tool).+"} != 0
+    for: 5m
+    labels:
+      severity: info
+      ostype: windows
+    annotations:
+      summary: 'WindowsUpdatePendingInfo on {{ $labels.fqdn }}'
+      description: "Pending Update: '{{ $labels.title }}'"
+
+- name: Microsoft
+  rules:
+  - alert: MSAzureATPServiceDown
+    expr: windows_service_info{display_name=~"Azure Advanced Threat Protection .*"} and ON(instance, name) windows_service_start_mode{start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'MSAzureATPServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+  - alert: MSSQLServiceDown
+    expr: windows_service_info{display_name=~`SQL Server \(.*\)`} and ON(instance, name) windows_service_start_mode{start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'MSSQLServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+  - alert: MSExchangeServiceDown
+    expr: windows_service_info{display_name=~"Microsoft Exchange.*"} and ON(instance, name) windows_service_info{display_name!="Microsoft Exchange Notifications Broker"} and ON(instance, name) windows_service_start_mode{start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'MSExchangeServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+  - alert: MSExchangeMailQueue
+    expr: custom_exchange_server_queue_messagecount > 2000
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'MSExchangeMailQueue on {{ $labels.fqdn }}'
+      description: 'MessageCount = {{ $value }}'
+
+  - alert: MSExchangeOULimit
+    expr: custom_exchange_server_ou_list_default_result_size  - custom_exchange_server_ou_count <= 0
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'MSExchangeOULimit on {{ $labels.fqdn }}'
+      description: 'MS Exchange Server has a wrong configuration for OU list default result size = {{ $value }}'
+
+  - alert: PowerBiDataGatewayServiceDown
+    expr: windows_service_start_mode{name="pbiegwservice",start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: critical
+      ostype: windows
+    annotations:
+      summary: 'PowerBiDataGatewayServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+- name: Kace
+  rules:
+  - alert: KaceServiceDown
+    expr: windows_service_info{display_name=~"Quest.*"} and ON(instance, name) windows_service_start_mode{start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'KaceServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+- name: FluentBit
+  rules:
+  - alert: FluentBitDown
+    expr: windows_service_start_mode{name="fluent-bit",start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'FluentBitDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+- name: Tenable
+  rules:
+  - alert: TenableServiceDown
+    expr: windows_service_start_mode{name="tenable nessus agent",start_mode="auto"} == 1 and ON (instance, name) windows_service_state{state="running"} != 1
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'TenableServiceDown on {{ $labels.fqdn }}'
+      description: '{{ $labels.name }} down on {{ $labels.fqdn }}'
+
+  - alert: TenableLinkStatus
+    expr: custom_tenable_link_status != 0
+    for: 5m
+    labels:
+      severity: warning
+      ostype: windows
+    annotations:
+      summary: 'Tenable agent is not linked to Cloud on {{ $labels.fqdn }}'
+      description: 'status = {{ $value }}'
