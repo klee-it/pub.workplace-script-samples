@@ -118,12 +118,12 @@ function ConvertTo-PromQL
         # Add the metric header if SkipHeader is not specified
         if (-Not $SkipHeader)
         {
-            $MetricHeader = "# HELP $($MetricName) $($MetricHelp).`n# TYPE $($MetricName) $($MetricType)"
-            $promqlString = "$($MetricHeader)`n$($promqlString)"
+            $MetricHeader = "# HELP $($MetricName) $( $MetricHelp.TrimEnd('.') ).$([System.Environment]::NewLine)# TYPE $($MetricName) $($MetricType)"
+            $promqlString = "$($MetricHeader)$([System.Environment]::NewLine)$($promqlString)"
         }
 
         # add last line break
-        $promqlString += "`n"
+        $promqlString += "$([System.Environment]::NewLine)"
 
         # Set the content of the return object
         Write-Output -InputObject $promqlString

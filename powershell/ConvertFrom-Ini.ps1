@@ -39,45 +39,43 @@ Function ConvertFrom-Ini
     
     try
     {
-        # read the ini file
-        $INI = Get-Content -Path "$($Path)"
+        # read the file content
+        $fileContent = Get-Content -Path "$($Path)"
 
-        $IniHash = @{}
-        $IniTemp = $null
+        # set parameters
+        $outputInfo = @{}
         $LastHeader = ''
 
-        ForEach ($Line in $INI)
+        ForEach ($Line in $fileContent)
         {
-            If ($Line.StartsWith('#') -eq $True)
+            If ( ($Line.StartsWith('#') -eq $True) -or ( [String]::IsNullOrEmpty($Line.Trim()) ) )
             {
+                Write-Verbose "Skip comment or empty line..."
                 continue
             }
             
-            If ($Line -eq "")
+            If ($Line.StartsWith('[') -and $Line.EndsWith(']'))
             {
-                continue
+                Write-Verbose "Header line found: $($line)..."
+                $LastHeader = "$($Line.Trim('[]'))"
+                $outputInfo["$($LastHeader)"] = @{}
             }
-            
-            If ($Line.StartsWith('[') -eq $True)
+            elseif ($Line -like '*=*')
             {
-                if ( ($IniTemp | Measure-Object).Count -gt 0 )
-                {
-                    $IniHash += $IniTemp
-                }
-                
-                $LastHeader = "$($Line.replace('[','').replace(']',''))".trim()
-                $IniTemp = @{}
-                $IniTemp = @{ "$($LastHeader)" = @{} }
+                Write-Verbose "Key/Value line found..."
+                $outputInfo["$($LastHeader)"] += ($Line | ConvertFrom-StringData -Delimiter '=')
             }
-            
-            If ($Line.StartsWith("[") -ne $True)
+            else
             {
-                $SplitArray = $Line.Split("=")
-                $IniTemp."$($LastHeader)" += @{$SplitArray[0].trim() = $SplitArray[1].trim()}
+                throw "[$($_.InvocationInfo.ScriptLineNumber)] Invalid line format: $($Line)"
             }
         }
 
-        Write-Output -InputObject $IniHash
+        Write-Output -InputObject $outputInfo
+
+        # clean-up
+        Get-Variable -Name 'fileContent' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'LastHeader' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
     catch
     {

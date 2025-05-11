@@ -51,7 +51,7 @@ function ConvertFrom-PromQL
         }
         
         # Extract the header if present
-        if ($PromQLString -match '# HELP (?<metricHelpName>[^\s]+) (?<metricHelpText>.+)\n# TYPE (?<metricTypeName>[^\s]+) (?<metricTypeValue>[^\s]+)\n(?<metricData>.+)')
+        if ($PromQLString -match "# HELP (?<metricHelpName>[^\s]+) (?<metricHelpText>.+)$([System.Environment]::NewLine)# TYPE (?<metricTypeName>[^\s]+) (?<metricTypeValue>[^\s]+)$([System.Environment]::NewLine)(?<metricData>.+)")
         {
             $promQLData.Header.MetricHelpName = $matches['metricHelpName']
             $promQLData.Header.MetricHelpText = $matches['metricHelpText']
@@ -61,7 +61,7 @@ function ConvertFrom-PromQL
         }
 
         # Extract metric name, labels, and value
-        if ($PromQLString -match '^(?<metricName>[^\{]+)\{(?<metricLabels>[^\}]+)\} (?<metricValue>[^\s]+)$')
+        if ($PromQLString -match '^(?!\W)(?<metricName>[^\{]+)\{(?<metricLabels>[^\}]+)\} (?<metricValue>[^\s]+)$')
         {
             $promQLData.Data.MetricName = $matches['metricName']
             $labelsString = $matches['metricLabels']

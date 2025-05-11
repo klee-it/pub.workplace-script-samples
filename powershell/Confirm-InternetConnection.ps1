@@ -50,16 +50,23 @@ Function Confirm-InternetConnection
         $SystemTlsVersion = [Net.ServicePointManager]::SecurityProtocol
         Set-ClientTlsProtocols
         
-        # check if internet connection is available
-        Write-Verbose -Message "Check if internet connection is available..."
-        $DefaultParameters = @{
-            ComputerName = $FQDN
+        # set splat for Test-Connection
+        Write-Verbose -Message "Set splat for Test-Connection..."
+        $TestConnectionSplat = @{
+            ComputerName = "$($FQDN)"
             Quiet = $true
             Count = 3
         }
-        $TestConnectionSplat = $DefaultParameters + $AdditionalParameters
-        Write-Verbose -Message "Splat: $($TestConnectionSplat | ConvertTo-Json -Compress)"
+        
+        if ( $AdditionalParameters.Count -gt 0)
+        {
+            $AdditionalParameters.GetEnumerator() | ForEach-Object { $TestConnectionSplat[$_.Key] = $_.Value }
+        }
 
+        Write-Verbose -Message "Splat: $($TestConnectionSplat | ConvertTo-Json -Compress)"
+        
+        # check if internet connection is available
+        Write-Verbose -Message "Check if internet connection is available..."
         $IsConnected = Test-Connection @TestConnectionSplat
         Write-Verbose -Message "Is connected: $($IsConnected)"
 

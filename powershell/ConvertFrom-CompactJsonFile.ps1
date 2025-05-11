@@ -37,6 +37,19 @@ function ConvertFrom-CompactJsonFile
     
     try
     {
+        # Check if the input object has a schema property
+        if (-Not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object {$_.Name -eq 'Schema'}) )
+        {
+            throw "The input object does not contain a 'Schema' property."
+        }
+
+        # Check if the input object has a values property
+        if (-Not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object {$_.Name -eq 'Values'}) )
+        {
+            throw "The input object does not contain a 'Values' property."
+        }
+
+        # Process the schema and values to create a PSCustomObject
         $ColumnNames = [ordered] @{}
         $InputObject.Schema | ForEach-Object { $ColumnNames[$_.Column] = $null }
         $OutputObject = @()
