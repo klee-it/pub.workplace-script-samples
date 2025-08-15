@@ -296,6 +296,9 @@ try
         $exit_code = 1
     }
 
+    # set output for intune
+    Write-Logging -Value "Exit code for Intune: $($exit_code)"
+
     Write-Logging -Value '### SCRIPT END ###################################'
 }
 catch

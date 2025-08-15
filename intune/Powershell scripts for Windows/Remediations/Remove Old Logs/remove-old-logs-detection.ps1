@@ -8,6 +8,9 @@
 ## location: Intune
 #
 
+# set strict mode
+$ErrorActionPreference = 'Stop'
+
 # set system parameters
 $exit_code = 0
 
@@ -144,8 +147,6 @@ function Write-Logging
 ###
 try
 {
-    $ErrorActionPreference = 'Stop'
-
     Write-Logging -Value '### SCRIPT BEGIN #################################'
 
     # go through all local log paths
@@ -213,15 +214,11 @@ try
 }
 catch
 {
-    Write-Logging -Value "### ERROR: MAIN ###"
     $exit_code = $($_.Exception.HResult)
-    Write-Logging -Value "Message: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
-    Write-Logging -Value "### ERROR END ###"
+    Write-Logging -Value "Error: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
 }
 finally
 {
-    $ErrorActionPreference = 'Continue' # default value
-
     # close log stream
     if (-Not ( [string]::IsNullOrEmpty($script:LogStream) ) )
     {
