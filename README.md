@@ -20,7 +20,7 @@ A curated collection of deployment, configuration, and monitoring scripts for ma
 ├── grafana/        # Dashboard examples and configurations
 ├── intune/         # Configuration, compliance and remediation scripts
 ├── jamf/           # Configuration scripts
-├── powershell/     # Extensive PowerShell functions for use in CLI, scripts, and modules
+├── powershell/     # Extensive PowerShell v5/v7 functions for use in CLI, scripts, and modules
 ├── prometheus/     # Alerting rule examples
 ├── proxmox/        # Automation scripts
 ├── ubuntu/         # Automation scripts
@@ -33,7 +33,7 @@ A curated collection of deployment, configuration, and monitoring scripts for ma
 
 - **Operating Systems:** Windows 10/11, Windows Server, Linux (Ubuntu), macOS
 - **Management:** Microsoft Intune, Jamf Pro, Proxmox
-- **Automation:** PowerShell, Bash, WinGet
+- **Automation:** PowerShell v5/v7, Bash, WinGet
 - **Monitoring:** Grafana, Prometheus
 
 ---
