@@ -22,8 +22,7 @@ $exit_code = 0
 $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 
 # set WinGet parameters
-# $script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } else { 'User' }
-$script:Scope = 'Machine'
+$script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } else { 'User' }
 
 # set logging parameters
 $script:enable_write_logging = $true

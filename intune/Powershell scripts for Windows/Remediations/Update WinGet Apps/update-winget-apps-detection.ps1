@@ -25,7 +25,7 @@ $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 $script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } else { 'User' }
 
 # set logging parameters
-$script:enable_write_logging = $false
+$script:enable_write_logging = $true
 $script:LogFilePath          = "C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\Custom\Remediations\UpdateWingetApps"
 $script:LogFileName          = "$($script:MyScriptInfo.BaseName)-$($script:Scope).log"
 $script:LogStream            = $null
