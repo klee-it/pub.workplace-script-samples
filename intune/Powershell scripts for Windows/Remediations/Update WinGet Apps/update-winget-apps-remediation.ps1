@@ -22,7 +22,8 @@ $exit_code = 0
 $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 
 # set WinGet parameters
-$script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } else { 'User' }
+# $script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } else { 'User' }
+$script:Scope = 'Machine'
 
 # set logging parameters
 $script:enable_write_logging = $true
@@ -141,105 +142,155 @@ function Write-Logging
 }
 
 ###
-### MAIN SCRIPT
+### FUNCTION: Checks WinGet apps for available updates and optionally upgrades them
 ###
-try
+function Update-WingetApps
 {
-    Write-Logging -Value '### SCRIPT BEGIN #################################'
+    [OutputType([System.Management.Automation.PSObject])]
+    [CmdLetBinding(DefaultParameterSetName="Default")]
 
-    # check if AppInstaller is installed
-    Write-Logging -Level 0 -Value "Check if AppInstaller is installed..."
+    param(
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('user', 'machine')]
+        [String]$Scope = 'user',
+
+        [Parameter(Mandatory=$false)]
+        [Switch] $IsCheckOnly = $false
+    )
+
     try
     {
-        $AppInstaller = Get-AppxProvisionedPackage -Online -ErrorAction 'Stop' | Where-Object {$_.DisplayName -eq 'Microsoft.DesktopAppInstaller'}
-        Write-Logging -Level 1 -Value "AppInstaller Version: $([Version]$AppInstaller.Version)"
-    
-        if (-not $AppInstaller)
-        {
-            throw "AppInstaller not installed"
+        $outputInfo = [PSCustomObject]@{
+            UpdatesAvailable = $false
+            Message          = ''
         }
-    }
-    catch
-    {
-        Write-Logging -Level 1 -Value "Warning: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
-        Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
-    }
 
-    # determine which winget executable to use
-    Write-Logging -Level 0 -Value "Determine WinGet executable..."
-    $WinGetDirectories = @()
-    $WinGetDirectories += "C:\Users\$($Env:USERNAME)\AppData\Local\Microsoft\WindowsApps\winget.exe"
-    $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "winget.exe" } | Select-Object -ExpandProperty FullName
-    $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "AppInstallerCLI.exe" } | Select-Object -ExpandProperty FullName
-    Write-Logging -Level 1 -Value "WinGet directories: $($WinGetDirectories -join ', ')"
+        # check if AppInstaller is installed
+        Write-Verbose -Message "Check if AppInstaller is installed..."
+        try
+        {
+            $AppInstaller = Get-AppxProvisionedPackage -Online -ErrorAction 'Stop' | Where-Object {$_.DisplayName -eq 'Microsoft.DesktopAppInstaller'}
+            Write-Verbose -Message "AppInstaller Version: $([Version]$AppInstaller.Version)"
 
-    # determine which winget executable to use
-    $Winget = $WinGetDirectories | Where-Object { Test-Path -Path "$($_)" -PathType 'Leaf' } | Select-Object -First 1
-    Write-Logging -Level 1 -Value "WinGet executable: $($Winget)"
+            if (-not $AppInstaller)
+            {
+                throw "AppInstaller not installed"
+            }
+        }
+        catch
+        {
+            Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        }
 
-    if (-Not $Winget)
-    {
-        throw "WinGet not found"
-    }
+        # determine which winget executable to use
+        Write-Verbose -Message "Determine WinGet executable..."
+        $WinGetDirectories = @()
+        $WinGetDirectories += "C:\Users\$($Env:USERNAME)\AppData\Local\Microsoft\WindowsApps\winget.exe"
+        $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "winget.exe" } | Select-Object -ExpandProperty FullName
+        $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "AppInstallerCLI.exe" } | Select-Object -ExpandProperty FullName
+        Write-Verbose -Message "WinGet directories: $($WinGetDirectories -join ', ')"
 
-    # clean-up
-    Get-Variable -Name "WinGetDirectories" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-    Get-Variable -Name "AppInstaller" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        # determine which winget executable to use
+        $Winget = $WinGetDirectories | Where-Object { Test-Path -Path "$($_)" -PathType 'Leaf' } | Select-Object -First 1
+        Write-Verbose -Message "WinGet executable: $($Winget)"
 
-    # run update by WinGet
-    Write-Logging -Level 0 -Value "Run upgrade by WinGet (User: $($env:USERNAME) / Scope: $($script:Scope))..."
+        # clean-up
+        Get-Variable -Name "WinGetDirectories" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name "AppInstaller" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
-    # list available updates
-    Write-Logging -Level 1 -Value "Check and detect available updates..."
-    $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
-    $ProcessStartInfo.FileName = "$($Winget)"
-    $ProcessStartInfo.Arguments = "upgrade --accept-source-agreements --scope $($script:Scope)"
-    $ProcessStartInfo.UseShellExecute = $false
-    $ProcessStartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
-    $ProcessStartInfo.RedirectStandardOutput = $true
-    $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
-    $updates = $Process.StandardOutput.ReadToEnd()
-    $Process.WaitForExit()
-    Write-Logging -Value "$([Environment]::NewLine)$($updates)" -StdOut 'None'
+        # run update by WinGet
+        Write-Verbose -Message "WinGet source: $($Winget)"
+        if (-Not $Winget)
+        {
+            throw "WinGet not found"
+        }
 
-    # check result if updates are available
-    $updatesAvailable = $updates | Select-String -Pattern '[0-9]+[ \t]*upgrades available' -Quiet
-    
-    # clean-up
-    Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-    Get-Variable -Name "Process" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-    Get-Variable -Name "updates" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Write-Verbose -Message "Run upgrade by WinGet (User: $($env:USERNAME) / Scope: $($Scope))..."
 
-    if ($updatesAvailable)
-    {
-        # updates available
-        Write-Logging -Level 1 -Value "Updates available, run upgrade process"
+        # list available updates
+        Write-Verbose -Message "Check and detect available updates..."
         $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
         $ProcessStartInfo.FileName = "$($Winget)"
-        $ProcessStartInfo.Arguments = "upgrade --all --silent --force --accept-source-agreements --disable-interactivity --scope $($script:Scope)"
+        $ProcessStartInfo.Arguments = "upgrade --accept-source-agreements --scope $($Scope)"
         $ProcessStartInfo.UseShellExecute = $false
         $ProcessStartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
         $ProcessStartInfo.RedirectStandardOutput = $true
         $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
         $updates = $Process.StandardOutput.ReadToEnd()
         $Process.WaitForExit()
-        Write-Logging -Value "$([Environment]::NewLine)$($updates)"
+        Write-Verbose -Message "Updates:$([Environment]::NewLine)$($updates)"
 
+        # check result if updates are available
+        $updatesAvailable = $updates | Select-String -Pattern '[0-9]+[ \t]*(?:upgrades available|Aktualisierungen verfügbar)' -Quiet
+        
         # clean-up
         Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         Get-Variable -Name "Process" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         Get-Variable -Name "updates" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
-        Write-Logging -Level 1 -Value "WinGet upgrade done"
-    }
-    else
-    {
-        Write-Logging -Level 1 -Value "Update not required"
-    }
+        if ($updatesAvailable)
+        {
+            if ($IsCheckOnly -eq $false)
+            {
+                # updates available
+                Write-Verbose -Message "Updates available, run upgrade process"
+                $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
+                $ProcessStartInfo.FileName = "$($Winget)"
+                $ProcessStartInfo.Arguments = "upgrade --all --silent --force --accept-source-agreements --disable-interactivity --scope $($Scope)"
+                $ProcessStartInfo.UseShellExecute = $false
+                $ProcessStartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
+                $ProcessStartInfo.RedirectStandardOutput = $true
+                $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
+                $updates = $Process.StandardOutput.ReadToEnd()
+                $Process.WaitForExit()
+                Write-Verbose -Message "$([Environment]::NewLine)$($updates)"
+    
+                # clean-up
+                Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                Get-Variable -Name "Process" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                Get-Variable -Name "updates" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+    
+                Write-Verbose -Message "WinGet upgrade done"
+                $outputInfo.UpdatesAvailable = $true
+                $outputInfo.Message          = "WinGet upgrade done"
+            }
+            else
+            {
+                Write-Verbose -Message "Updates available, but check-only mode is enabled"
+                $outputInfo.UpdatesAvailable = $true
+                $outputInfo.Message          = "Updates available, but check-only mode is enabled"
+            }
+        }
+        else
+        {
+            Write-Verbose -Message "No updates available"
+            $outputInfo.UpdatesAvailable = $false
+            $outputInfo.Message          = "No updates available"
+        }
+        
+        # clean-up
+        Get-Variable -Name "updatesAvailable" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name "Winget" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
-    # clean-up
-    Get-Variable -Name "updatesAvailable" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-    Get-Variable -Name "Winget" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Write-Output -InputObject $outputInfo
+    }
+    catch
+    {
+        Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+    }
+}
+
+###
+### MAIN SCRIPT
+###
+try
+{
+    Write-Logging -Value '### SCRIPT BEGIN #################################'
+
+    # Check for updates
+    Write-Logging -Level 0 -Value "Check for updates by WinGet (User: $($env:USERNAME) / Scope: $($script:Scope))..."
+    $result = Update-WingetApps -Scope "$($script:Scope)"
+    Write-Logging -Level 1 -Value "Result: $($result | ConvertTo-Json -Depth 5 -Compress)"
 
     Write-Logging -Value '### SCRIPT END ###################################'
 }
