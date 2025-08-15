@@ -53,13 +53,13 @@ Function Get-NormalizedVersion
         # check if the value is empty
         if ( [String]::IsNullOrEmpty($Value) )
         {
-            Write-Warning -Message "Given value was empty. Returning empty string."
+            Write-Verbose -Message "Given value was empty. Returning empty string."
         }
 
         # check if the value contains letters
         elseif ( $Value -match '[a-zA-Z ]' )
         {
-            Write-Warning -Message "Given value contains letters. Returning empty string."
+            Write-Verbose -Message "Given value contains letters. Returning empty string."
         }
 
         # replace all non-numeric characters with a dot and trim ending zeros
@@ -72,7 +72,7 @@ Function Get-NormalizedVersion
             # check if normalized value is empty
             if ( [String]::IsNullOrEmpty($normalizedValue) )
             {
-                Write-Warning -Message "Normalized value was empty. Returning empty string."
+                Write-Verbose -Message "Normalized value was empty. Returning empty string."
             }
             # check if normalized value is in format major.minor(.patch)(.build)
             elseif ( $normalizedValue -notmatch '^\d+\.\d+(?:\.\d+)?(?:\.\d+)?$' )

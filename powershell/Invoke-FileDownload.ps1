@@ -57,12 +57,13 @@ Function Invoke-FileDownload
             $_ -match '^(http|https)://.*$' -or
             $_ -match '^\\.*' -or
             $_ -match '^[A-Z]?:\\.*' -or
+            $_ -match '^file://.*' -or
             $_ -match '^AM_[0-9A-Z_]+:.*'
         })]
         [Uri] $Uri,
 
         [Parameter(Mandatory=$false)]
-        [String] $AdditionalArguments = @{},
+        [Hashtable] $AdditionalArguments = @{},
 
         [Parameter(Mandatory=$true)]
         [ValidateScript({Test-Path -Path "$($_)" -PathType 'Container'})]
@@ -105,14 +106,14 @@ Function Invoke-FileDownload
             $dlWebClient = New-Object System.Net.WebClient
 
             # set additional arguments
-            if ($AdditionalArguments)
+            if ($AdditionalArguments.ContainsKey('Headers'))
             {
-                foreach ($key in $AdditionalArguments.Keys)
+                foreach ($key in $AdditionalArguments['Headers'].Keys)
                 {
-                    $dlWebClient.Add($key, $AdditionalArguments[$key])
+                    $dlWebClient.Headers.Add($key, $AdditionalArguments['Headers'][$key])
                 }
             }
-
+            
             # download file
             $dlWebClient.DownloadFile($Uri, $LocalFileName)
             

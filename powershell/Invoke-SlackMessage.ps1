@@ -23,7 +23,7 @@
         - The response from the Slack webhook or API.
 
 .EXAMPLE
-    PS> $MsTeamsSplat = @{
+    PS> $SlackSplat = @{
         URL = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
         Message = @(
             [PSCustomObject]@{
@@ -52,7 +52,7 @@
             }
         )
     }
-    PS> Invoke-SlackMessage @MsTeamsSplat
+    PS> Invoke-SlackMessage @SlackSplat
 
 .NOTES
     Author: klee-it

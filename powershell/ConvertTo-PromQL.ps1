@@ -10,7 +10,7 @@
     The name of the metric. This parameter is mandatory.
 
 .PARAMETER MetricLabels
-    The labels associated with the metric. This can be a Hashtable or a PSCustomObject. This parameter is optional.
+    The labels associated with the metric. This can be a Hashtable, OrderedDictionary, PSObject, or PSCustomObject. This parameter is optional.
 
 .PARAMETER MetricValue
     The value of the metric. This parameter is mandatory.
@@ -41,7 +41,7 @@
 #>
 
 ###
-### FUNCTION: parse PromQL string
+### FUNCTION: convert to PromQL string
 ###
 function ConvertTo-PromQL
 {
@@ -53,7 +53,7 @@ function ConvertTo-PromQL
         [String] $MetricName,
 
         [Parameter(Mandatory = $False)]
-        [Object] $MetricLabels = $null,
+        [System.Management.Automation.PSObject] $MetricLabels = $null,
 
         [Parameter(Mandatory = $True)]
         [String] $MetricValue,
@@ -75,7 +75,7 @@ function ConvertTo-PromQL
         $labels = @()
 
         # Check if the input is a Hashtable
-        if ($MetricLabels -is [HashTable])
+        if ($MetricLabels -is [System.Collections.Hashtable])
         {
             foreach ($key in $MetricLabels.Keys)
             {
@@ -83,8 +83,26 @@ function ConvertTo-PromQL
             }
         }
 
+        # Check if the input is a OrderedDictionary
+        elseif ($MetricLabels -is [System.Collections.Specialized.OrderedDictionary])
+        {
+            foreach ($key in $MetricLabels.Keys)
+            {
+                $labels += "$($key)=`"$($MetricLabels["$($key)"])`""
+            }
+        }
+
+        # Check if the input is a PSObject
+        elseif ($MetricLabels -is [System.Management.Automation.PSObject])
+        {
+            foreach ($property in $MetricLabels.PSObject.Properties)
+            {
+                $labels += "$($property.Name)=`"$($property.Value)`""
+            }
+        }
+
         # Check if the input is a PSCustomObject
-        elseif ($MetricLabels -is [PSCustomObject])
+        elseif ($MetricLabels -is [System.Management.Automation.PSCustomObject])
         {
             foreach ($property in $MetricLabels.PSObject.Properties)
             {
@@ -93,7 +111,7 @@ function ConvertTo-PromQL
         }
 
         # If no labels are provided, just use the metric name and value
-        elseif ( [string]::IsNullOrEmpty($MetricLabels) )
+        elseif ( [String]::IsNullOrEmpty($MetricLabels) )
         {
             $labels = @()
         }

@@ -34,8 +34,12 @@ function Get-ChunkByRows
     [CmdLetBinding(DefaultParameterSetName="Default")]
 
     param(
-        [Parameter(Mandatory=$false)] [Object[]] $InputObject = @(),
-        [Parameter(Mandatory=$false)] [int] $ChunkSize = 10
+        [Parameter(Mandatory=$false)]
+        [Object[]] $InputObject = @(),
+
+        [Parameter(Mandatory=$false)]
+        [ValidateRange(1, [int]::MaxValue)]
+        [int] $ChunkSize = 10
     )
     
     try

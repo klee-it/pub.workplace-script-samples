@@ -76,7 +76,7 @@ Function Clear-ArchivePath
 
         # Get all files in archive path
         Write-Verbose -Message "Get all files in archive path..."
-        $ArchiveFiles = Get-ChildItem -Path "$($Path)" -Include $script:ArchiveFileExtenstion -File -Recurse | Sort-Object -Descending
+        $ArchiveFiles = Get-ChildItem -Path "$($Path)" -Include $FileExtensions -File -Recurse | Sort-Object -Descending
         Write-Verbose -Message "Number of total files: $( ($ArchiveFiles | Measure-Object).Count )"
 
         # Get files older then RetentionPolicy
