@@ -151,17 +151,98 @@ function Update-WingetApps
     param(
         [Parameter(Mandatory=$false)]
         [ValidateSet('user', 'machine')]
-        [String]$Scope = 'user',
+        [String] $Scope = 'user',
 
         [Parameter(Mandatory=$false)]
-        [Switch] $IsCheckOnly = $false
+        [Switch] $IsCheckOnly = $false,
+
+        [Parameter(Mandatory=$false)]
+        [Switch] $DisableProgress
     )
+
+    function Get-WinGetUserSettings
+    {
+        [OutputType([System.Management.Automation.PSObject])]
+        [CmdLetBinding(DefaultParameterSetName="Default")]
+
+        param(
+            [Parameter(Mandatory=$false)]
+            [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
+            [String] $Path = "C:\Users\$($Env:USERNAME)\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
+        )
+
+        try
+        {
+            # Get user-specific settings for WinGet
+            Write-Verbose -Message "Read WinGet user settings..."
+            Write-Output -InputObject (Get-Content -Path "$($Path)" -Raw | ConvertFrom-Json)
+            Write-Verbose -Message "Settings: $($Settings | ConvertTo-Json -Depth 5 -Compress)"
+        }
+        catch
+        {
+            Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+            Write-Output -InputObject ( [PSCustomObject]@{ '$schema' = 'https://aka.ms/winget-settings.schema.json' } )
+        }
+    }
+
+    function New-WinGetUserSettings
+    {
+        [OutputType([System.Management.Automation.PSObject])]
+        [CmdLetBinding(DefaultParameterSetName="Default")]
+
+        param(
+            [Parameter(Mandatory=$false)]
+            [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
+            [String] $Path = "C:\Users\$($Env:USERNAME)\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json",
+
+            [Parameter(Mandatory=$false)]
+            [System.Management.Automation.PSObject] $UserSettings = (Get-WinGetUserSettings -Path "$($Path)"),
+
+            [Parameter(Mandatory=$false)]
+            [System.Management.Automation.PSObject] $NewSettings
+        )
+
+        try
+        {
+            # Add new settings to user settings
+            Write-Verbose -Message "Adding new settings to WinGet user settings..."
+            foreach ($setting in $NewSettings)
+            {
+                $nameParts = $setting.Name -split '\.'
+                $current = $UserSettings
+
+                for ($i = 0; $i -lt $nameParts.Length - 1; $i++)
+                {
+                    $part = $nameParts[$i]
+
+                    if (-not ($current.PSObject.Properties.Name -contains $part)) {
+                        $current | Add-Member -MemberType NoteProperty -Name $part -Value ([PSCustomObject]@{})
+                    }
+
+                    $current = $current.$part
+                }
+
+                $finalPart = $nameParts[-1]
+                $current | Add-Member -Force -MemberType NoteProperty -Name $finalPart -Value $setting.Value
+            }
+
+            # Set user-specific settings for WinGet
+            Write-Verbose -Message "Write WinGet user settings..."
+            $UserSettings | ConvertTo-Json -Depth 20 | Out-File -FilePath "$($Path)" -Encoding 'UTF8' -Force
+        }
+        catch
+        {
+            Write-Error -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        }
+    }
 
     try
     {
         $outputInfo = [PSCustomObject]@{
             UpdatesAvailable = $false
             Message          = ''
+            ConsoleOutputCheck  = ''
+            ConsoleOutputUpdate = ''
         }
 
         # check if AppInstaller is installed
@@ -197,11 +278,20 @@ function Update-WingetApps
         Get-Variable -Name "WinGetDirectories" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         Get-Variable -Name "AppInstaller" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
-        # run update by WinGet
+        # check if WinGet source is available
         Write-Verbose -Message "WinGet source: $($Winget)"
         if (-Not $Winget)
         {
             throw "WinGet not found"
+        }
+
+        # set WinGet user settings to disable progress reporting
+        if ($DisableProgress)
+        {
+            Write-Verbose -Message "Set user settings to disable progress reporting..."
+            $WingetUserSettings = Get-WinGetUserSettings
+            New-WinGetUserSettings -UserSettings $WingetUserSettings.PSObject.Copy() -NewSettings @( @{ Name = 'visual.progressBar'; Value = 'disabled' } )
+            Write-Verbose -Message "WinGet user settings updated."
         }
 
         Write-Verbose -Message "Run upgrade by WinGet (User: $($env:USERNAME) / Scope: $($Scope))..."
@@ -218,6 +308,7 @@ function Update-WingetApps
         $updates = $Process.StandardOutput.ReadToEnd()
         $Process.WaitForExit()
         Write-Verbose -Message "Updates:$([Environment]::NewLine)$($updates)"
+        $outputInfo.ConsoleOutputCheck = "$($updates)"
 
         # check result if updates are available
         $updatesAvailable = $updates | Select-String -Pattern '[0-9]+[ \t]*(?:upgrades available|Aktualisierungen verfügbar)' -Quiet
@@ -243,6 +334,7 @@ function Update-WingetApps
                 $updates = $Process.StandardOutput.ReadToEnd()
                 $Process.WaitForExit()
                 Write-Verbose -Message "$([Environment]::NewLine)$($updates)"
+                $outputInfo.ConsoleOutputUpdate = "$($updates)"
     
                 # clean-up
                 Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
@@ -277,6 +369,17 @@ function Update-WingetApps
     {
         Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }
+    finally
+    {
+        # Reset WinGet user settings
+        if ($WingetUserSettings)
+        {
+            Write-Verbose -Message "Reset WinGet user settings to previous state..."
+            New-WinGetUserSettings -UserSettings $WingetUserSettings -NewSettings $null
+            Write-Verbose -Message "WinGet user settings reset to previous state."
+            Get-Variable -Name "WingetUserSettings" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+    }
 }
 
 ###
@@ -289,7 +392,8 @@ try
     # Check for updates
     Write-Logging -Level 0 -Value "Check for updates by WinGet (User: $($env:USERNAME) / Scope: $($script:Scope))..."
     $result = Update-WingetApps -Scope "$($script:Scope)"
-    Write-Logging -Level 1 -Value "Result: $($result | ConvertTo-Json -Depth 5 -Compress)"
+    Write-Logging -Level 1 -Value "Result: $($result | Select-Object UpdatesAvailable, Message | ConvertTo-Json -Depth 5 -Compress)"
+    Write-Logging -Level 1 -Value "Console Output Update:$([Environment]::NewLine)$($result.ConsoleOutputUpdate)"
 
     Write-Logging -Value '### SCRIPT END ###################################'
 }
