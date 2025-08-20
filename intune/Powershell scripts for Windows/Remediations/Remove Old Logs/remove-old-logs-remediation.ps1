@@ -19,7 +19,7 @@ $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 
 # set logging parameters
 $script:enable_write_logging = $true
-$script:LogFilePath          = "C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\Custom\Remediations\RemoveOldLogs"
+$script:LogFilePath          = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom\Remediations\RemoveOldLogs"
 $script:LogFileName          = "$($script:MyScriptInfo.BaseName).log"
 $script:LogStream            = $null
 $script:LogOptionAppend      = $false
@@ -27,7 +27,7 @@ $script:LogOptionAppend      = $false
 # set device parameters
 $script:LocalLogDirectories = @(
     [PSCustomObject]@{
-        Path = "C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\Custom"
+        Path = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom"
         FileExtension = @('*.log')
         RetentionPolicy = "1M"
     }
@@ -160,7 +160,8 @@ try
             Write-Logging -Level 1 -Value 'Check if path exists...'
             if (-not (Test-Path -Path "$($LocalDir.Path)" -PathType 'Container'))
             {
-                throw "Path does not exist"
+                Write-Logging -Level 2 -Value "Path does not exist"
+                continue
             }
 
             # get all log files
@@ -175,8 +176,8 @@ try
             Write-Logging -Level 2 -Value "Number of files: $( ($AllLogFiles | Measure-Object).Count )"
 
             # get files older than retention policy
-            $RetentionMode  = "$($script:LocalLogDirectories.RetentionPolicy[-1])"
-            $RetentionValue = ($script:LocalLogDirectories.RetentionPolicy).Substring(0, ($script:LocalLogDirectories.RetentionPolicy).Length - 1)
+            $RetentionMode  = "$($LocalDir.RetentionPolicy[-1])"
+            $RetentionValue = ($LocalDir.RetentionPolicy).Substring(0, ($LocalDir.RetentionPolicy).Length - 1)
             $FilesToRemove  = @()
 
             Write-Logging -Level 1 -Value "Get files older then $($RetentionValue)$($RetentionMode)..."
@@ -258,6 +259,16 @@ try
         {
             Write-Logging -Level 2 -Value "Error: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
             $exit_code = $($_.Exception.HResult)
+        }
+        finally
+        {
+            # cleanup
+            Get-Variable -Name 'SearchSplat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'AllLogFiles' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'RetentionMode' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'RetentionValue' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'FilesToRemove' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'EmptyFolders' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
     }
 
