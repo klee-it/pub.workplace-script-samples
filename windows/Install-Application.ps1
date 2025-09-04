@@ -348,6 +348,101 @@ Function Get-NormalizedVersion
 }
 
 ###
+### FUNCTION: Get installed applications from registry with filtering options
+###
+function Get-InstalledAppsFromRegistry
+{
+    [OutputType([System.Management.Automation.PSObject])]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
+
+    param(
+        [Parameter(ParameterSetName = 'Default', Mandatory = $true)]
+        [String] $DisplayName,
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [String] $DisplayNameExclusion = '',
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [String] $VersionMajor = '',
+
+        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [String] $UninstallString = '',
+
+        [Parameter(ParameterSetName = 'All', Mandatory = $true)]
+        [Switch] $All = $false
+    )
+    
+    try
+    {
+        # query all the registry keys where applications usually leave a mark for installed applications
+        Write-Verbose -Message 'Collecting installed applications from registry...'
+        $RegistryUninstallPaths = @(
+            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        )
+
+        $ReadRegistry = @()
+        foreach ($RegistryUninstallPath in $RegistryUninstallPaths)
+        {
+            $ReadRegistry += Get-ItemProperty -Path "$($RegistryUninstallPath)" -ErrorAction 'SilentlyContinue' | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, VersionMajor, VersionMinor, PSChildName, UninstallString, InstallLocation, @{ Name = 'RegistryPath'; Expression = { $RegistryUninstallPath } }
+        }
+
+        if ($All)
+        {
+            Write-Verbose -Message 'All switch specified, returning all installed applications...'
+            $LocalAppInfo = $ReadRegistry
+        }
+        else
+        {
+            # set basic filter script
+            Write-Verbose -Message 'Setting basic filter script...'
+            $FilterScript = { $_.DisplayName -like "$($DisplayName)" }
+
+            # filter by minimum major version
+            if (-not ( [string]::IsNullOrWhiteSpace($VersionMajor) ) )
+            {
+                Write-Verbose -Message "Minimum major version variable specified: $($VersionMajor)"
+    
+                $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.VersionMajor -ge $VersionMajor')
+            }
+
+            # filter by display name exclusion
+            if (-not ( [string]::IsNullOrWhiteSpace($DisplayNameExclusion) ) )
+            {
+                Write-Verbose -Message "DisplayName exclusion variable specified: $($DisplayNameExclusion)"
+
+                $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.DisplayName -notlike "$($DisplayNameExclusion)"')
+            }
+
+            # filter by uninstall string exclusion
+            if (-not ( [string]::IsNullOrWhiteSpace($UninstallString) ) )
+            {
+                Write-Verbose -Message "UninstallString exclusion variable specified: $($UninstallString)"
+    
+                $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.UninstallString -notlike "$($UninstallString)"')
+            }
+
+            # get application based on filter script
+            $LocalAppInfo = $ReadRegistry | Where-Object -FilterScript $FilterScript
+        }
+        Write-Verbose -Message "Number of installed applications: $( ($LocalAppInfo | Measure-Object).Count )"
+
+        # output the local app info
+        Write-Output -InputObject $LocalAppInfo
+
+        # clean-up
+        Get-Variable -Name 'FilterScript' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'ReadRegistry' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'RegistryUninstallPaths' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+    }
+    catch
+    {
+        Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+    }
+}
+
+###
 ### FUNCTION: Get status of application installation
 ###
 function Get-ApplicationStatus
@@ -432,46 +527,28 @@ function Get-ApplicationStatus
                 "registry" {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: registry"
                     
-                    # check if application is already installed
+                    # get minimum major version from application version
                     [Version]$LatestVersion = Get-NormalizedVersion -Value "$($InputObject.application.version)"
                     $MinVersion = $LatestVersion.Major
-
-                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Registry based detection: $($InputObject.application.registry_name) - v$($LatestVersion)"
-                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Collecting installed applications from registry..."
-                    $RegistryUninstallPaths = @(
-                        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                        'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                        'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-                    )
-
-                    $ReadRegistry = @()
-                    foreach ($RegistryUninstallPath in $RegistryUninstallPaths)
-                    {
-                        $ReadRegistry += Get-ItemProperty -Path "$($RegistryUninstallPath)" -ErrorAction 'SilentlyContinue' | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, VersionMajor, VersionMinor, PSChildName, UninstallString, InstallLocation, @{ Name = 'RegistryPath'; Expression = {$RegistryUninstallPath} }
-                    }
-                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] RegInfo pulled-in, starting comparisons "
-
-                    ### set basic filter script
-                    $FilterScript = { $_.DisplayName -like "$($InputObject.application.registry_name)" -and ($_.VersionMajor -ge $MinVersion -or $_.VersionMajor -eq $null ) }
                     
-                    ### filter by appname exclusion
-                    if (-Not ( [string]::IsNullOrWhiteSpace("$($InputObject.application.registry_exclusion_name)") ) )
+                    # check if application is already installed
+                    $Splat = @{
+                        DisplayName  = "$($InputObject.application.registry_name)"
+                        VersionMajor = "$($MinVersion)"
+                    }
+                    
+                    if ($InputObject.application.registry_exclusion_name)
                     {
-                        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] AppName exclusion variable specified: $($InputObject.application.registry_exclusion_name)"
-
-                        $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.DisplayName -notlike "$($InputObject.application.registry_exclusion_name)"')
+                        $Splat.DisplayNameExclusion = "$($InputObject.application.registry_exclusion_name)"
                     }
 
-                    ### filter by uninstall string exclusion
-                    if (-Not ( [string]::IsNullOrWhiteSpace("$($InputObject.application.registry_exclusion_uninstall_string)") ) )
+                    if ($InputObject.application.registry_exclusion_uninstall_string)
                     {
-                        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] UninstallString exclusion variable specified: $($InputObject.application.registry_exclusion_uninstall_string)"
-
-                        $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.UninstallString -notlike "$($InputObject.application.registry_exclusion_uninstall_string)"')
+                        $Splat.UninstallString = "$($InputObject.application.registry_exclusion_uninstall_string)"
                     }
 
-                    $LocalAppInfo = $ReadRegistry | Where-Object -FilterScript $FilterScript
+                    $LocalAppInfo = Get-InstalledAppsFromRegistry @Splat
+                    Get-Variable -Name "Splat" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Number of installed applications: $( ($LocalAppInfo | Measure-Object).Count )"
 
                     # if application is installed check version
