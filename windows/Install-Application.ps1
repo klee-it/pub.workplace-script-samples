@@ -557,7 +557,7 @@ function Get-ApplicationStatus
                 {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: registry"
                     
-                    # check if application is already installed
+                    # get minimum major version from application version
                     [Version]$LatestVersion = Get-NormalizedVersion -Value "$($InputObject.application.version)"
                     $MinVersion = $LatestVersion.Major
 
