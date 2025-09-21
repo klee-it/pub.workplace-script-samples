@@ -31,13 +31,13 @@
 function Get-ChunkByRows
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Object[]] $InputObject = @(),
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateRange(1, [int]::MaxValue)]
         [int] $ChunkSize = 10
     )
@@ -47,7 +47,7 @@ function Get-ChunkByRows
         $OutputList = New-Object System.Collections.ArrayList
         $TempList = New-Object System.Collections.ArrayList
 
-        foreach($item in $InputObject)
+        foreach ($item in $InputObject)
         {
             $TempList.Add($item) | Out-Null
 

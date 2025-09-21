@@ -30,17 +30,17 @@
 ###
 ### FUNCTION: check if internet connection is available
 ###
-Function Confirm-InternetConnection
+function Confirm-InternetConnection
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [String] $FQDN = 'www.google.com',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [HashTable] $AdditionalParameters = @{}
     )
 
@@ -51,11 +51,11 @@ Function Confirm-InternetConnection
         Set-ClientTlsProtocols
         
         # set splat for Test-Connection
-        Write-Verbose -Message "Set splat for Test-Connection..."
+        Write-Verbose -Message 'Set splat for Test-Connection...'
         $TestConnectionSplat = @{
             ComputerName = "$($FQDN)"
-            Quiet = $true
-            Count = 3
+            Quiet        = $true
+            Count        = 3
         }
         
         if ( $AdditionalParameters.Count -gt 0)
@@ -66,7 +66,7 @@ Function Confirm-InternetConnection
         Write-Verbose -Message "Splat: $($TestConnectionSplat | ConvertTo-Json -Compress)"
         
         # check if internet connection is available
-        Write-Verbose -Message "Check if internet connection is available..."
+        Write-Verbose -Message 'Check if internet connection is available...'
         $IsConnected = Test-Connection @TestConnectionSplat
         Write-Verbose -Message "Is connected: $($IsConnected)"
 

@@ -20,10 +20,10 @@
 ###
 ### FUNCTION: get logged on users
 ###
-Function Get-LoggedOnUsers
+function Get-LoggedOnUsers
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param()
 
@@ -38,8 +38,8 @@ Function Get-LoggedOnUsers
         if ( [string]::IsNullOrWhitespace($QueryRawData) )
         {
             $QueryRawData = @(
-                " USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME"
-                ">temp                  rdp-tcp#33         00  Disc            .  $(Get-Date -format 'dd.MM.yyyy HH:mm')"
+                ' USERNAME              SESSIONNAME        ID  STATE   IDLE TIME  LOGON TIME'
+                ">temp                  rdp-tcp#33         00  Disc            .  $(Get-Date -Format 'dd.MM.yyyy HH:mm')"
             )
         }
 
@@ -53,14 +53,14 @@ Function Get-LoggedOnUsers
         $fenceIndexes = ($fencedHeader | Select-String '\|' -AllMatches).Matches.Index
         
         # set timespan format for IdleTime
-        $timeSpanFormats = [string[]]@("d\+hh\:mm", "h\:mm", "%m")
+        $timeSpanFormats = [string[]]@('d\+hh\:mm', 'h\:mm', '%m')
         
         # go trough the lines
         $outputInfo = @()
         foreach ($line in $QueryRawData | Select-Object -Skip 1)
         {
             # Insert bars on the same positions, and then split the line into separate parts using these bars.
-            $fenceIndexes | ForEach-Object { $line = $line.Insert($_, "|") }
+            $fenceIndexes | ForEach-Object { $line = $line.Insert($_, '|') }
             $parts = $line -split '\|' | ForEach-Object { $_.Trim() }
             
             # Parse each part as a strongly typed value, using the UI Culture if needed.

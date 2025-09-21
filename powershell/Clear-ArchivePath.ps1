@@ -39,25 +39,25 @@
 ###
 ### FUNCTION: clean-up of available archived files
 ###
-Function Clear-ArchivePath
+function Clear-ArchivePath
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String] $Path,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [Object[]] $FileExtensions = @('*.log'),
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({$_ -match '^[0-9]+[yMdhms]$' })]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ $_ -match '^[0-9]+[yMdhms]$' })]
         [String] $RetentionPolicy,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Switch] $SkipRemoval = $false
     )
 
@@ -70,12 +70,12 @@ Function Clear-ArchivePath
         }
 
         # set parameters
-        $RetentionMode  = "$($RetentionPolicy[-1])"
+        $RetentionMode = "$($RetentionPolicy[-1])"
         $RetentionValue = ($RetentionPolicy).Substring(0, ($RetentionPolicy).Length - 1)
-        $FilesToRemove  = @()
+        $FilesToRemove = @()
 
         # Get all files in archive path
-        Write-Verbose -Message "Get all files in archive path..."
+        Write-Verbose -Message 'Get all files in archive path...'
         $ArchiveFiles = Get-ChildItem -Path "$($Path)" -Include $FileExtensions -File -Recurse | Sort-Object -Descending
         Write-Verbose -Message "Number of total files: $( ($ArchiveFiles | Measure-Object).Count )"
 
@@ -83,18 +83,18 @@ Function Clear-ArchivePath
         Write-Verbose -Message "Get files older then $($RetentionValue)$($RetentionMode)..."
         switch -CaseSensitive ($RetentionMode)
         {
-            "y" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddYears($RetentionValue) -lt (Get-Date) }; break }
-            "M" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMonths($RetentionValue) -lt (Get-Date) }; break }
-            "d" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddDays($RetentionValue) -lt (Get-Date) }; break }
-            "h" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddHours($RetentionValue) -lt (Get-Date) }; break }
-            "m" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMinutes($RetentionValue) -lt (Get-Date) }; break }
-            "s" { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddSeconds($RetentionValue) -lt (Get-Date) }; break }
+            'y' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddYears($RetentionValue) -lt (Get-Date) }; break }
+            'M' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMonths($RetentionValue) -lt (Get-Date) }; break }
+            'd' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddDays($RetentionValue) -lt (Get-Date) }; break }
+            'h' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddHours($RetentionValue) -lt (Get-Date) }; break }
+            'm' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMinutes($RetentionValue) -lt (Get-Date) }; break }
+            's' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddSeconds($RetentionValue) -lt (Get-Date) }; break }
             default { throw "Defined mode are not supported: $($RetentionMode)"; break }
         }
         Write-Verbose -Message "Number of old files: $( ($FilesToRemove | Measure-Object).Count )"
 
         # generate output object
-        $outputInfo = $FilesToRemove | Select-Object FullName, @{ Name = 'Status'; Expression = {'retired'} }
+        $outputInfo = $FilesToRemove | Select-Object FullName, @{ Name = 'Status'; Expression = { 'retired' } }
 
         # check if clean-up is enabled
         if ($SkipRemoval -eq $false)
@@ -102,7 +102,7 @@ Function Clear-ArchivePath
             # remove files
             if ( ($FilesToRemove | Measure-Object).Count -gt 0 )
             {
-                Write-Verbose -Message "Remove old files..."
+                Write-Verbose -Message 'Remove old files...'
 
                 foreach ($item in $FilesToRemove)
                 {
@@ -114,7 +114,7 @@ Function Clear-ArchivePath
                         try
                         {
                             Remove-Item -Path "$($item.FullName)" -Force
-                            Write-Verbose -Message "File removed"
+                            Write-Verbose -Message 'File removed'
                             $itemStatus = 'removed'
                         }
                         catch
@@ -125,7 +125,7 @@ Function Clear-ArchivePath
                     }
                     else
                     {
-                        Write-Verbose -Message "File not found"
+                        Write-Verbose -Message 'File not found'
                         $itemStatus = 'not found'
                     }
 
@@ -141,7 +141,7 @@ Function Clear-ArchivePath
         }
         else
         {
-            Write-Verbose -Message "Skip removal of old files..."
+            Write-Verbose -Message 'Skip removal of old files...'
         }
 
         # return output object

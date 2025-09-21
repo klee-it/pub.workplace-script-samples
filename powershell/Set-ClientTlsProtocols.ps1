@@ -22,10 +22,10 @@
 ###
 ### FUNCTION: set client tls protocols
 ###
-Function Set-ClientTlsProtocols
+function Set-ClientTlsProtocols
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param()
     
@@ -36,8 +36,8 @@ Function Set-ClientTlsProtocols
         $AvailableTls = [enum]::GetValues('Net.SecurityProtocolType') | Where-Object { $_ -ge 'Tls12' }
     
         $AvailableTls.ForEach({
-            [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor $_
-        })
+                [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor $_
+            })
     }
     catch
     {

@@ -40,10 +40,10 @@
 ###
 ### FUNCTION: generate new random secure string
 ###
-Function New-RandomSecureString
+function New-RandomSecureString
 {
     [OutputType([System.String])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter( Mandatory = $True )]
@@ -79,7 +79,7 @@ Function New-RandomSecureString
         # check if the number of upper/lower/numeric/special char is lower or equal to length
         if ($Upper + $Lower + $Numeric + $Special -gt $Length)
         {
-            throw "Number of upper/lower/numeric/special char must be lower or equal to length"
+            throw 'Number of upper/lower/numeric/special char must be lower or equal to length'
         }
 
         # define character sets
@@ -87,7 +87,7 @@ Function New-RandomSecureString
         $lCharSet = 'abcdefghijklmnopqrstuvwxyz'
         $nCharSet = '0123456789'
         $sCharSet = '!@#$*._-+'
-        $charSet = ""
+        $charSet = ''
 
         # add character sets to the secure string
         if ($Upper -gt 0) { $charSet += $uCharSet }
@@ -115,12 +115,12 @@ Function New-RandomSecureString
         $valid = $true
 
         # check if the secure string contains the required number of upper/lower/numeric/special characters
-        if ($Upper   -gt ($secureString.ToCharArray() | Where-Object {$_ -cin $uCharSet.ToCharArray() }).Count) { $valid = $false }
-        if ($Lower   -gt ($secureString.ToCharArray() | Where-Object {$_ -cin $lCharSet.ToCharArray() }).Count) { $valid = $false }
-        if ($Numeric -gt ($secureString.ToCharArray() | Where-Object {$_ -cin $nCharSet.ToCharArray() }).Count) { $valid = $false }
-        if ($Special -gt ($secureString.ToCharArray() | Where-Object {$_ -cin $sCharSet.ToCharArray() }).Count) { $valid = $false }
+        if ($Upper -gt ($secureString.ToCharArray() | Where-Object { $_ -cin $uCharSet.ToCharArray() }).Count) { $valid = $false }
+        if ($Lower -gt ($secureString.ToCharArray() | Where-Object { $_ -cin $lCharSet.ToCharArray() }).Count) { $valid = $false }
+        if ($Numeric -gt ($secureString.ToCharArray() | Where-Object { $_ -cin $nCharSet.ToCharArray() }).Count) { $valid = $false }
+        if ($Special -gt ($secureString.ToCharArray() | Where-Object { $_ -cin $sCharSet.ToCharArray() }).Count) { $valid = $false }
     
-        if (-Not $valid)
+        if (-not $valid)
         {
             $secureString = New-RandomSecureString -Length $Length -Upper $Upper -Lower $Lower -Numeric $Numeric -Special $Special
         }

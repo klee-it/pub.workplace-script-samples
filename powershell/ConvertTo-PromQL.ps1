@@ -46,7 +46,7 @@
 function ConvertTo-PromQL
 {
     [OutputType([System.String])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter(Mandatory = $True)]
@@ -117,7 +117,7 @@ function ConvertTo-PromQL
         }
         else
         {
-            throw "Unsupported data type. Please provide a Hashtable, PSCustomObject, or null."
+            throw 'Unsupported data type. Please provide a Hashtable, PSCustomObject, or null.'
         }
 
         # Join the labels into a single string
@@ -134,7 +134,7 @@ function ConvertTo-PromQL
         }
 
         # Add the metric header if SkipHeader is not specified
-        if (-Not $SkipHeader)
+        if (-not $SkipHeader)
         {
             $MetricHeader = "# HELP $($MetricName) $( $MetricHelp.TrimEnd('.') ).$([System.Environment]::NewLine)# TYPE $($MetricName) $($MetricType)"
             $promqlString = "$($MetricHeader)$([System.Environment]::NewLine)$($promqlString)"

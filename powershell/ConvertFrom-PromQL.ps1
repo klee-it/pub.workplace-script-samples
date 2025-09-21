@@ -27,7 +27,7 @@
 function ConvertFrom-PromQL
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter(Mandatory = $True)]
@@ -38,15 +38,15 @@ function ConvertFrom-PromQL
     {
         $promQLData = [PSCustomObject]@{
             Header = [PSCustomObject]@{
-                MetricHelpName = $null
-                MetricHelpText = $null
-                MetricTypeName = $null
+                MetricHelpName  = $null
+                MetricHelpText  = $null
+                MetricTypeName  = $null
                 MetricTypeValue = $null
             }
-            Data = [PSCustomObject]@{
-                MetricName = $null
+            Data   = [PSCustomObject]@{
+                MetricName   = $null
                 MetricLabels = $null
-                MetricValue = $null
+                MetricValue  = $null
             }
         }
         
@@ -87,7 +87,7 @@ function ConvertFrom-PromQL
         }
         else
         {
-            throw "Invalid PromQL string format"
+            throw 'Invalid PromQL string format'
         }
 
         # Set the content of the return object

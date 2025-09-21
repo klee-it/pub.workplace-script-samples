@@ -38,19 +38,19 @@
 function Merge-CustomObjectData
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [PSCustomObject] $DefaultObject,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [PSCustomObject] $CustomObject,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Switch] $OverwriteArrays = $false,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Switch] $OnlyEmptyObjects = $false
     )
     
@@ -58,11 +58,11 @@ function Merge-CustomObjectData
     {
         # set default and custom object to full object
         $DefaultObject = $DefaultObject.PSObject.Copy()
-        $CustomObject  = $CustomObject.PSObject.Copy()
+        $CustomObject = $CustomObject.PSObject.Copy()
 
         # get field names
         $DefaultObject_Fields = $DefaultObject | Get-Member -MemberType 'NoteProperty' | Sort-Object -Property Name | Select-Object -ExpandProperty Name
-        $CustomObject_Fields  = $CustomObject | Get-Member -MemberType 'NoteProperty' | Sort-Object -Property Name | Select-Object -ExpandProperty Name
+        $CustomObject_Fields = $CustomObject | Get-Member -MemberType 'NoteProperty' | Sort-Object -Property Name | Select-Object -ExpandProperty Name
 
         # go through all default fields
         foreach ($fieldName in $DefaultObject_Fields)
@@ -81,17 +81,19 @@ function Merge-CustomObjectData
                 # if field exists and is a object, check subfields
                 switch ($fieldType)
                 {
-                    'PSCustomObject' { 
+                    'PSCustomObject'
+                    { 
                         $DataSplat = @{
-                            DefaultObject = $DefaultObject."$($fieldName)"
-                            CustomObject  = $CustomObject."$($fieldName)"
-                            OverwriteArrays = $OverwriteArrays
+                            DefaultObject    = $DefaultObject."$($fieldName)"
+                            CustomObject     = $CustomObject."$($fieldName)"
+                            OverwriteArrays  = $OverwriteArrays
                             OnlyEmptyObjects = $OnlyEmptyObjects
                         }
                         $CustomObject."$($fieldName)" = Merge-CustomObjectData @DataSplat
                         break
                     }
-                    'Object[]' {
+                    'Object[]'
+                    {
                         if ($OnlyEmptyObjects)
                         {
                             if ( [String]::IsNullOrEmpty($DefaultObject."$($fieldName)") )
@@ -116,7 +118,8 @@ function Merge-CustomObjectData
                         }
                         break
                     }
-                    default {
+                    default
+                    {
                         if ($OnlyEmptyObjects)
                         {
                             if ( [String]::IsNullOrEmpty($DefaultObject."$($fieldName)") )

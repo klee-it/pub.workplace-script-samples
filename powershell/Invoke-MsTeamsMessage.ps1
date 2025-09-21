@@ -57,17 +57,17 @@
 ###
 ### FUNCTION: invoke MS Teams message
 ###
-Function Invoke-MsTeamsMessage
+function Invoke-MsTeamsMessage
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$True)]
-        [ValidateScript({$_ -match '^https://.+.logic.azure.com:443/workflows/.*'})]
+        [Parameter(Mandatory = $True)]
+        [ValidateScript({ $_ -match '^https://.+.logic.azure.com:443/workflows/.*' })]
         [String] $URL,
 
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [Object[]] $Message
     )
@@ -78,16 +78,16 @@ Function Invoke-MsTeamsMessage
 
         # create request body
         $requestBody = [PSCustomObject]@{
-            type = 'message'
+            type        = 'message'
             attachments = @(
                 [PSCustomObject]@{
                     contentType = 'application/vnd.microsoft.card.adaptive'
-                    contentUrl = $null
-                    content = [PSCustomObject]@{
+                    contentUrl  = $null
+                    content     = [PSCustomObject]@{
                         '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'
-                        type = 'AdaptiveCard'
-                        version = '1.4'
-                        body = $Message
+                        type      = 'AdaptiveCard'
+                        version   = '1.4'
+                        body      = $Message
                     }
                 }
             )
