@@ -333,7 +333,7 @@ try
         if ($currentDeviceName -match '^[a-zA-Z]{3}-.*$')
         {
             # generate new hostname
-            $newDeviceName = "$( $currentDeviceName.Substring(0,3) )-$( Get-WmiObject -class win32_bios | Select-Object -ExpandProperty SerialNumber )".ToUpper()
+            $newDeviceName = "$( $currentDeviceName.Substring(0,3) )-$( Get-CimInstance -ClassName 'Win32_Bios' -Namespace 'root/CIMV2' | Select-Object -ExpandProperty SerialNumber )".ToUpper()
             Write-Logging -Value "|__ New device name: $($newDeviceName)"
             
             # set new hostname
