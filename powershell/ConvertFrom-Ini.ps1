@@ -26,14 +26,14 @@
 ###
 ### FUNCTION: convert an ini file to a HashTable
 ###
-Function ConvertFrom-Ini
+function ConvertFrom-Ini
 {
     [OutputType([System.Collections.Hashtable])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ Test-Path -Path $_ -PathType 'Leaf' })]
         [string]$Path
     )
     
@@ -46,15 +46,15 @@ Function ConvertFrom-Ini
         $outputInfo = @{}
         $LastHeader = ''
 
-        ForEach ($Line in $fileContent)
+        foreach ($Line in $fileContent)
         {
-            If ( ($Line.StartsWith('#') -eq $True) -or ( [String]::IsNullOrEmpty($Line.Trim()) ) )
+            if ( ($Line.StartsWith('#') -eq $True) -or ( [String]::IsNullOrEmpty($Line.Trim()) ) )
             {
-                Write-Verbose "Skip comment or empty line..."
+                Write-Verbose 'Skip comment or empty line...'
                 continue
             }
             
-            If ($Line.StartsWith('[') -and $Line.EndsWith(']'))
+            if ($Line.StartsWith('[') -and $Line.EndsWith(']'))
             {
                 Write-Verbose "Header line found: $($line)..."
                 $LastHeader = "$($Line.Trim('[]'))"
@@ -62,7 +62,7 @@ Function ConvertFrom-Ini
             }
             elseif ($Line -like '*=*')
             {
-                Write-Verbose "Key/Value line found..."
+                Write-Verbose 'Key/Value line found...'
                 $outputInfo["$($LastHeader)"] += ($Line | ConvertFrom-StringData -Delimiter '=')
             }
             else

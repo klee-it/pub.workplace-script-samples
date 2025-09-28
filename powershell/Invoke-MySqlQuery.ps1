@@ -34,7 +34,7 @@
 function Invoke-MySqlQuery
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter(Mandatory = $True)]
@@ -45,19 +45,19 @@ function Invoke-MySqlQuery
 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [String] $Driver = "C:\Program Files (x86)\MySQL\MySQL Connector NET 9.1\MySql.Data.dll"
+        [String] $Driver = 'C:\Program Files (x86)\MySQL\MySQL Connector NET 9.1\MySql.Data.dll'
     )
     
     try
     {
         # Check if the driver file exists
-        if (-Not (Test-Path -Path "$($Driver)" -PathType 'Leaf'))
+        if (-not (Test-Path -Path "$($Driver)" -PathType 'Leaf'))
         {
-            throw "The driver file does not exist."
+            throw 'The driver file does not exist.'
         }
         
         # Load the driver
-        [Void][System.Reflection.Assembly]::LoadFrom($Driver);
+        [Void][System.Reflection.Assembly]::LoadFrom($Driver)
 
         # Create a connection
         $mySqlConnection = New-Object MySql.Data.MySqlClient.MySqlConnection
@@ -70,7 +70,7 @@ function Invoke-MySqlQuery
         $mySqlCommand.CommandText = $Query
         $myExecuteReader = $mySqlCommand.ExecuteReader()
 
-        while($myExecuteReader.Read())
+        while ($myExecuteReader.Read())
         {
             $myExecuteReader.GetString(0)
         }

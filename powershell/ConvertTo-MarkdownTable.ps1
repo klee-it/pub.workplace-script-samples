@@ -35,7 +35,7 @@
 function ConvertTo-MarkdownTable
 {
     [OutputType([System.String])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter(Mandatory = $True)]

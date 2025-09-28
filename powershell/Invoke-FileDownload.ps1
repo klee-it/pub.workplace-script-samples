@@ -46,33 +46,33 @@
 ###
 ### FUNCTION: Invoke file download
 ###
-Function Invoke-FileDownload
+function Invoke-FileDownload
 {
     [OutputType([System.IO.FileInfo])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateScript({
-            $_ -match '^(http|https)://.*$' -or
-            $_ -match '^\\.*' -or
-            $_ -match '^[A-Z]?:\\.*' -or
-            $_ -match '^file://.*' -or
-            $_ -match '^AM_[0-9A-Z_]+:.*'
-        })]
+                $_ -match '^(http|https)://.*$' -or
+                $_ -match '^\\.*' -or
+                $_ -match '^[A-Z]?:\\.*' -or
+                $_ -match '^file://.*' -or
+                $_ -match '^AM_[0-9A-Z_]+:.*'
+            })]
         [Uri] $Uri,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Hashtable] $AdditionalArguments = @{},
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({Test-Path -Path "$($_)" -PathType 'Container'})]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ Test-Path -Path "$($_)" -PathType 'Container' })]
         [String] $Destination,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $FileName = '',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('WebClient', 'WebRequest')]
         [String] $Method = 'WebClient'
     )
@@ -94,9 +94,9 @@ Function Invoke-FileDownload
         }
 
         # check if filename is plausible
-        if ( [io.path]::GetFileName($LocalFileName) -notmatch '^[A-Za-z0-9_.-]+\.[A-Za-z0-9]{3,4}$' )
+        if ( [io.path]::GetFileName($LocalFileName) -notmatch '^[A-Za-z0-9_.-]+\.[A-Za-z0-9]{3,}$' )
         {
-            throw "The file name is empty or invalid."
+            throw 'The file name is empty or invalid.'
         }
         
         # invoke file download
@@ -127,8 +127,8 @@ Function Invoke-FileDownload
         {
             # create web request
             $dlSplat = @{
-                Uri = $Uri
-                OutFile = $LocalFileName
+                Uri             = $Uri
+                OutFile         = $LocalFileName
                 UseBasicParsing = $true
             }
 

@@ -1,6 +1,6 @@
 # Basic information
 # |__ Version: 2025-01-09
-# |__ Command: powershell.exe -NoLogo -WindowStyle Hidden -ExecutionPolicy ByPass -File ".\Install-Application.ps1"
+# |__ KACE Command: powershell.exe -NoLogo -WindowStyle Hidden -ExecutionPolicy ByPass -File ".\local-install-app-by-kace.ps1"
 
 # set strict mode
 $ErrorActionPreference = 'Stop'
@@ -13,12 +13,12 @@ $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 
 # set logging parameters
 $script:enable_write_logging = $true
-$script:LogFilePath          = "$($env:ProgramData)\klee-it\AppDeployment"
-$script:LogFileName          = "$($script:MyScriptInfo.BaseName).log"
+$script:LogFilePath = "$($env:ProgramData)\klee-it\AppDeploymentByKace"
+$script:LogFileName = "$($script:MyScriptInfo.BaseName).log"
 
 # set configuration parameters
-$script:ConfigFilePath  = "$($PSScriptRoot)"
-$script:ConfigFileName  = "$($script:MyScriptInfo.BaseName).json"
+$script:ConfigFilePath = "$($PSScriptRoot)"
+$script:ConfigFileName = "kace-app-installation-configuration.json"
 
 # set download parameters
 $script:DownloadPath = "$($PSScriptRoot)"
@@ -38,27 +38,27 @@ $script:RunStatus = [PSCustomObject]@{
 function Write-Logging
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Value = '',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Module = '',
 
-        [Parameter(Mandatory=$false)]
-        [ValidateScript({$_ -eq -1 -or $_ -match "^\d+$"})]
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({ $_ -eq -1 -or $_ -match '^\d+$' })]
         [int] $Level = -1,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Mode = 'add',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('None', 'Host', 'Warning')]
         [String] $StdOut = 'Host',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
     
@@ -66,12 +66,12 @@ function Write-Logging
     {
         # set log file path
         $FilePath = "$($script:LogFilePath)"
-        If (-Not (Test-Path -Path "$($FilePath)"))
+        if (-not (Test-Path -Path "$($FilePath)"))
         {
-            New-Item -Path "$($FilePath)" -ItemType "Directory" -Force | Out-Null
+            New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
         
-        $File   = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
+        $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
         
         # set prefix
@@ -80,21 +80,21 @@ function Write-Logging
             # default level
             -1 { $prefix = '' }
             # root level
-            0  { $prefix = '# ' }
+            0 { $prefix = '# ' }
             # sub level
-            default { $prefix = "$((1..$($Level) | ForEach-Object { "|__" }) -join '') " }
+            default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
         
         # set log message
         $logMessage = "$($prefix)$($Value)"
-        $logDetails = "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
+        $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
 
         # write to stdout
         switch ($StdOut)
         {
-            'Host'        { $OptionsSplat['Object'] = "$($logMessage)"; Write-Host @OptionsSplat }
-            'Warning'     { $OptionsSplat['Message'] = "$($logMessage)"; Write-Warning @OptionsSplat }
-            default       { break }
+            'Host' { $OptionsSplat['Object'] = "$($logMessage)"; Write-Host @OptionsSplat }
+            'Warning' { $OptionsSplat['Message'] = "$($logMessage)"; Write-Warning @OptionsSplat }
+            default { break }
         }
 
         # check size of log file
@@ -103,7 +103,7 @@ function Write-Logging
             # if max size reached, create new log file
             if ((Get-Item -Path "$($File)").length -gt 10Mb)
             {
-                $Mode = "set"
+                $Mode = 'set'
             }
         }
 
@@ -116,11 +116,12 @@ function Write-Logging
                 Encoding = 'UTF8'
             }
 
-            switch ($Mode) {
+            switch ($Mode)
+            {
                 # create new logfile with the value
-                "set" { Set-Content @LogSplat; break }
+                'set' { Set-Content @LogSplat; break }
                 # add existing value
-                "add" { Add-Content @LogSplat; break }
+                'add' { Add-Content @LogSplat; break }
             }
 
             Get-Variable -Name 'LogSplat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
@@ -145,7 +146,7 @@ function Write-Logging
 function Get-LocalSystemDetails
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param()
 
@@ -153,15 +154,16 @@ function Get-LocalSystemDetails
     {
         # set system details object
         $SystemDetails = [PSCustomObject]@{
-            PowerShellVersion       = "$($PSVersionTable.PSVersion)"
-            PowerShellEdition       = "$($PSVersionTable.PSEdition)"
-            Is64BitProcess          = [Environment]::Is64BitProcess
-            Is64BitOperatingSystem  = [Environment]::Is64BitOperatingSystem
-            RuntimeUser             = "$([System.Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty Name)"
-            LastBootDateTime        = Get-CimInstance -ClassName Win32_OperatingSystem | Select-Object -ExpandProperty LastBootUpTime
-            LastBootUpTime          = $null
-            ComputerInfo            = $null
-            OsType                  = $null
+            PowerShellVersion      = "$($PSVersionTable.PSVersion)"
+            PowerShellEdition      = "$($PSVersionTable.PSEdition)"
+            Is64BitProcess         = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
+            Is64BitOperatingSystem = [Environment]::Is64BitOperatingSystem
+            RuntimeUser            = "$([System.Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty Name)"
+            LastBootDateTime       = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object -ExpandProperty LastBootUpTime
+            LastBootUpTime         = $null
+            PendingReboot          = $false
+            ComputerInfo           = $null
+            OsType                 = $null
         }
 
         # PowerShell v7
@@ -172,7 +174,23 @@ function Get-LocalSystemDetails
             $SystemDetails.OsType = $PSVersionTable.OS
         }
 
-        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "System Details: $($SystemDetails | ConvertTo-Json -Depth 3 -Compress)" -StdOut 'None'
+        # check if a reboot is pending
+        try
+        {
+            $SystemDetails.PendingReboot = (New-Object -ComObject 'Microsoft.Update.SystemInfo').RebootRequired
+        }
+        catch
+        {
+            try
+            {
+                Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired' -ErrorAction 'Stop' | Out-Null
+                $SystemDetails.PendingReboot = $true
+            }
+            catch
+            {
+                $SystemDetails.PendingReboot = $false
+            }
+        }
 
         # return system details
         Write-Output -InputObject $SystemDetails
@@ -189,15 +207,15 @@ function Get-LocalSystemDetails
 function Import-Configuration
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({Test-Path -Path "$($_)" -PathType 'Leaf'})]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ Test-Path -Path "$($_)" -PathType 'Leaf' })]
         [String] $Path,
 
-        [Parameter(Mandatory=$false)]
-        [ValidateSet('json','raw')]
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('json', 'raw')]
         [String] $Format = 'json'
     )
 
@@ -226,10 +244,10 @@ function Import-Configuration
 function Update-EnvVariables
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSObject] $InputObject
     )
@@ -265,7 +283,7 @@ function Update-EnvVariables
                 }
             }
 
-            Write-Verbose -Message "Update environment variables in configuration file successfully completed"
+            Write-Verbose -Message 'Update environment variables in configuration file successfully completed'
         }
         else
         {
@@ -283,13 +301,13 @@ function Update-EnvVariables
 ###
 ### FUNCTION: Get normalized version string which can be used for version comparison
 ###
-Function Get-NormalizedVersion
+function Get-NormalizedVersion
 {
     [OutputType([System.String])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Value = ''
     )
     
@@ -303,36 +321,36 @@ Function Get-NormalizedVersion
         # check if the value is empty
         if ( [String]::IsNullOrEmpty($Value) )
         {
-            Write-Warning -Message "Given value was empty. Returning empty string."
+            Write-Warning -Message 'Given value was empty. Returning empty string.'
         }
 
         # check if the value contains letters
         elseif ( $Value -match '[a-zA-Z ]' )
         {
-            Write-Warning -Message "Given value contains letters. Returning empty string."
+            Write-Warning -Message 'Given value contains letters. Returning empty string.'
         }
 
         # replace all non-numeric characters with a dot and trim ending zeros
         else
         {
             # $normalizedValue = "$($Value -replace '[\D]', '.')".TrimEnd('.0') # TrimEnd() replaces all specified characters, but not as "word"
-            $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' )"
+            $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' -replace '\.0$', '' )"
             Write-Verbose -Message "Normalized value: '$($normalizedValue)'"
     
             # check if normalized value is empty
             if ( [String]::IsNullOrEmpty($normalizedValue) )
             {
-                Write-Warning -Message "Normalized value was empty. Returning empty string."
+                Write-Warning -Message 'Normalized value was empty. Returning empty string.'
             }
             # check if normalized value is in format major.minor(.patch)(.build)
             elseif ( $normalizedValue -notmatch '^\d+\.\d+(?:\.\d+)?(?:\.\d+)?$' )
             {
-                Write-Verbose -Message "Normalized value is not in format major.minor. Add missing minor part."
+                Write-Verbose -Message 'Normalized value is not in format major.minor. Add missing minor part.'
                 $OutputString = "$($normalizedValue).0"
             }
             else
             {
-                Write-Verbose -Message "Normalized value is in format major.minor(.patch)(.build)."
+                Write-Verbose -Message 'Normalized value is in format major.minor(.patch)(.build).'
                 $OutputString = "$($normalizedValue)"
             }
 
@@ -369,7 +387,10 @@ function Get-InstalledAppsFromRegistry
         [String] $UninstallString = '',
 
         [Parameter(ParameterSetName = 'All', Mandatory = $true)]
-        [Switch] $All = $false
+        [Switch] $All = $false,
+
+        [Parameter(ParameterSetName = 'ByFilter', Mandatory = $true)]
+        [System.Collections.Hashtable] $Filter = @{}
     )
     
     try
@@ -392,6 +413,11 @@ function Get-InstalledAppsFromRegistry
         {
             Write-Verbose -Message 'All switch specified, returning all installed applications...'
             $LocalAppInfo = $ReadRegistry
+        }
+        elseif ($PSBoundParameters.ContainsKey('Filter') -and $Filter.Count -gt 0)
+        {
+            Write-Verbose -Message 'Custom filter hashtable specified, applying filter...'
+            $LocalAppInfo = $ReadRegistry | Where-Object @Filter
         }
         else
         {
@@ -448,10 +474,10 @@ function Get-InstalledAppsFromRegistry
 function Get-ApplicationStatus
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSObject] $InputObject
     )
@@ -469,7 +495,8 @@ function Get-ApplicationStatus
             # check other installation by ...
             switch -Wildcard ($InputObject.setup_parameter.check_other_installation_by)
             {
-                "file*" {
+                'file*'
+                {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: file*"
                     
                     # check if application is already installed
@@ -497,19 +524,21 @@ function Get-ApplicationStatus
                                     break
                                 }
 
-                                Get-Variable -Name "CurrentItem" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                                Get-Variable -Name "CurrentItem_version" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                                Get-Variable -Name "NewItem_version" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                                Get-Variable -Name 'CurrentItem' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                                Get-Variable -Name 'CurrentItem_version' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                                Get-Variable -Name 'NewItem_version' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                             }
-                            else {
+                            else
+                            {
                                 $OtherInstallationExists = $true
                             }
                             break
                         }
-                    };
+                    }
                     break
                 }
-                "folder" {
+                'folder'
+                {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: folder"
                     
                     # check if application is already installed
@@ -521,16 +550,17 @@ function Get-ApplicationStatus
                             $OtherInstallationExists = $true
                             break
                         }
-                    };
+                    }
                     break
                 }
-                "registry" {
+                'registry'
+                {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: registry"
                     
-                    # get minimum major version from application version
+                    # check if application is already installed
                     [Version]$LatestVersion = Get-NormalizedVersion -Value "$($InputObject.application.version)"
                     $MinVersion = $LatestVersion.Major
-                    
+
                     # check if application is already installed
                     $Splat = @{
                         DisplayName  = "$($InputObject.application.registry_name)"
@@ -548,7 +578,7 @@ function Get-ApplicationStatus
                     }
 
                     $LocalAppInfo = Get-InstalledAppsFromRegistry @Splat
-                    Get-Variable -Name "Splat" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Number of installed applications: $( ($LocalAppInfo | Measure-Object).Count )"
 
                     # if application is installed check version
@@ -571,7 +601,7 @@ function Get-ApplicationStatus
                         # more blabla to log, trust me, you'll need it for tests
                         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Local installed application name: '$($LocalAppInfo.DisplayName)' with version: '$($LocalAppInfo.DisplayVersion)'"
 
-                        If ($ActualVersion -ge $LatestVersion)
+                        if ($ActualVersion -ge $LatestVersion)
                         {
                             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Client version: $($ActualVersion), Pushed version: $($LatestVersion)"
                             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Update not required due to client having newer version OR its the same"
@@ -584,7 +614,7 @@ function Get-ApplicationStatus
                             $OtherInstallationExists = $false
                         }
 
-                        Remove-Variable -Name "ActualVersion"
+                        Remove-Variable -Name 'ActualVersion'
                     }
                     else
                     { 
@@ -593,23 +623,24 @@ function Get-ApplicationStatus
                     }
                     
                     # clean-up
-                    Get-Variable -Name "LocalAppInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name "FilterScript" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name "ReadRegistry" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name "RegistryUninstallPaths" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name "MinVersion" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name "LatestVersion" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force;
+                    Get-Variable -Name 'LocalAppInfo' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'FilterScript' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'ReadRegistry' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'RegistryUninstallPaths' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'MinVersion' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'LatestVersion' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     break
                 }
-                default {
-                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Value to check other installation not supported: $($InputObject.setup_parameter.check_other_installation_by)";
+                default
+                {
+                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Value to check other installation not supported: $($InputObject.setup_parameter.check_other_installation_by)"
                     break
                 }
             }
         }
 
         # check if existing installation should be replaced
-        if ( ($InputObject.setup_parameter.replace_other_installation -eq "no") -And ($OtherInstallationExists -eq $true) )
+        if ( ($InputObject.setup_parameter.replace_other_installation -eq 'no') -and ($OtherInstallationExists -eq $true) )
         {
             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Application replacement not allowed"
             $script:RunStatus.pre_setup = $false
@@ -643,21 +674,21 @@ function Get-ApplicationStatus
 ###
 ### FUNCTION: invoke file download
 ###
-Function Invoke-FileDownload
+function Invoke-FileDownload
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [String] $Path,
 
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String] $FileName,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateScript({$_ -like 'https://*'})]
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({ $_ -like 'https://*' })]
         [String] $Url
     )
 
@@ -666,16 +697,16 @@ Function Invoke-FileDownload
         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Invoke file download"
 
         # create local repository
-        If (-Not (Test-Path -Path "$($Path)"))
+        if (-not (Test-Path -Path "$($Path)"))
         {
-            New-Item -Path "$($Path)" -ItemType "Directory" -Force | Out-Null
+            New-Item -Path "$($Path)" -ItemType 'Directory' -Force | Out-Null
             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Local repository created: $($Path)"
         }
 
         # abort if local repository does not exist
-        If (-Not ( Test-Path -Path "$($Path)" ) )
+        if (-not ( Test-Path -Path "$($Path)" ) )
         {
-            throw "Local repository does not exist"
+            throw 'Local repository does not exist'
         }
 
         # remove previous file
@@ -700,12 +731,12 @@ Function Invoke-FileDownload
         {
             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] |__ No previous file found"
         }
-        Get-Variable -Name "localFiles" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'localFiles' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
         # create web request splat
         $WebRequestSplat = @{
-            Uri = "$($Url)"
-            OutFile = "$($Path)\$($FileName)"
+            Uri             = "$($Url)"
+            OutFile         = "$($Path)\$($FileName)"
             UseBasicParsing = $true
         }
         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Splat: $( $WebRequestSplat | ConvertTo-Json -Compress )"
@@ -714,8 +745,8 @@ Function Invoke-FileDownload
         $WebResult = Invoke-WebRequest @WebRequestSplat
         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Web result: $( $WebResult | ConvertTo-Json -Compress -Depth 2 )"
         
-        Get-Variable -Name "WebResult" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name "WebRequestSplat" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'WebResult' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'WebRequestSplat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
         # return content
         Write-Output -InputObject ( Get-Item -Path "$($Path)\$($FileName)" )
@@ -733,111 +764,119 @@ Function Invoke-FileDownload
 function Install-Application
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [System.Management.Automation.PSObject] $InputObject,
 
-        [Parameter(Mandatory=$true)]
-        [ValidateSet('pre_setup','main_setup','post_setup')]
-        [String] $Mode
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('pre_setup', 'main_setup', 'post_setup')]
+        [String] $Scope
     )
         
     try
     {
-        # set setup file parameters
-        $SetupFile = $InputObject.$($Mode).file
-        $SetupFile_Ext = $SetupFile.split(".")[-1]
-        $SetupArguments = $InputObject.$($Mode).arguments
-        $SetupParameters = $InputObject.$($Mode).parameters
-        $SetupSleep = $InputObject.$($Mode).sleep
-        
+        # set parameters
+        $SetupFile = "$($InputObject.file)"
+        $SetupFile_Ext = "$( [System.IO.Path]::GetExtension($SetupFile) )".TrimStart('.')
+        $SetupArguments = if ($InputObject.arguments) { $InputObject.arguments } else { @() }
+        $SetupParameters = if ($InputObject.parameters) { $InputObject.parameters } else { $null }
+        $SetupSleep = if ($InputObject.sleep) { $InputObject.sleep } else { $false }
+
         # set start process parameters
         $StartProcessSplat = @{
-            FilePath = ''
+            FilePath     = ''
             ArgumentList = @()
         }
-        $SetupParameters.PsObject.Properties | ForEach-Object {$StartProcessSplat[$_.Name] = $_.Value }
+        
+        if ($SetupParameters)
+        {
+            $SetupParameters.PsObject.Properties | ForEach-Object { $StartProcessSplat[$_.Name] = $_.Value }
+        }
 
         # set sleep parameter
         $StartSleep = 30 #seconds
 
         # check if setup file path corresponds to Powershell execution path
-        if ($SetupFile.substring(0,3) -notlike '*:\' -and $SetupFile.substring(0,2) -ne '.\')
+        if ($SetupFile.substring(0, 3) -notlike '*:\' -and $SetupFile.substring(0, 2) -ne '.\')
         {
             switch ( $SetupFile_Ext )
             {
-                "msi" { break }
-                default {
+                'msi' { break }
+                default
+                {
                     $SetupFile = "$($PSScriptRoot)\$($SetupFile)"
                     break
                 }
             }
         }
 
-        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] [$($SetupFile_Ext)] Installation [$Mode] will be started: $($SetupFile)"
+        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] [$($SetupFile_Ext)] [$Scope] Installation will be started: $($SetupFile)"
 
         # check setup file extension and set file path and arguments
         switch ( $SetupFile_Ext )
         {
-            "msi" {
-                $StartProcessSplat["FilePath"] = 'msiexec.exe'
-                $StartProcessSplat["ArgumentList"] += "/i `"$($SetupFile)`""
-                $StartProcessSplat["ArgumentList"] += $SetupArguments
+            'msi'
+            {
+                $StartProcessSplat['FilePath'] = 'msiexec.exe'
+                $StartProcessSplat['ArgumentList'] += "/i `"$($SetupFile)`""
+                $StartProcessSplat['ArgumentList'] += $SetupArguments
                 break
             }
-            "ps1" {
-                $StartProcessSplat["FilePath"] = "$($Env:SystemRoot)\system32\WindowsPowerShell\v1.0\powershell.exe"
-                $StartProcessSplat["ArgumentList"] += "-ExecutionPolicy ByPass"
-                $StartProcessSplat["ArgumentList"] += "-File `"$($SetupFile)`""
+            'ps1'
+            {
+                $StartProcessSplat['FilePath'] = "$($Env:SystemRoot)\system32\WindowsPowerShell\v1.0\powershell.exe"
+                $StartProcessSplat['ArgumentList'] += '-ExecutionPolicy ByPass'
+                $StartProcessSplat['ArgumentList'] += "-File `"$($SetupFile)`""
                 break
             }
-            default { 
-                Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] [$($SetupFile_Ext)] Use default installation"
-                $StartProcessSplat["FilePath"] = "$($SetupFile)"
-                $StartProcessSplat["ArgumentList"] += $SetupArguments
+            default
+            {
+                Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Use default installation method"
+                $StartProcessSplat['FilePath'] = "$($SetupFile)"
+                $StartProcessSplat['ArgumentList'] += $SetupArguments
                 break
             }
         }
 
         # remove argument list if empty
-        if ( [string]::IsNullOrEmpty($StartProcessSplat["ArgumentList"]) )
+        if ( [string]::IsNullOrEmpty($StartProcessSplat['ArgumentList']) )
         {
-            $StartProcessSplat.Remove("ArgumentList")
+            $StartProcessSplat.Remove('ArgumentList')
         }
 
         # start installation of setup file
-        if ($StartProcessSplat["FilePath"])
+        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Splat: $($StartProcessSplat | ConvertTo-Json -Depth 3 -Compress)"
+        Start-Process @StartProcessSplat
+
+        # check if script should sleep after installation
+        if ($SetupSleep -eq 'yes')
         {
-            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Start process with paramter list: $($StartProcessSplat | ConvertTo-Json -Depth 3 -Compress)"
-            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Start process with paramter list"
-            Start-Process @StartProcessSplat
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Sleep for $($StartSleep) seconds"
+            Start-Sleep -Seconds $StartSleep
+        }
 
-            # check if script should sleep after installation
-            if ($SetupSleep -eq 'yes')
+        switch ($Scope)
+        {
+            'pre_setup'
             {
-                Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Sleep for $($StartSleep) seconds"
-                Start-Sleep -Seconds $StartSleep
+                $script:RunStatus.main_setup = $true
+                break
             }
-
-            switch ($Mode)
+            'main_setup'
             {
-                "pre_setup" {
-                    $script:RunStatus.main_setup = $true
-                    break
-                }
-                "main_setup" {
-                    $script:RunStatus.post_setup = $true
-                    break
-                }
-                "post_setup" {
-                    break
-                }
-                default {
-                    break
-                }
+                $script:RunStatus.post_setup = $true
+                break
+            }
+            'post_setup'
+            {
+                break
+            }
+            default
+            {
+                break
             }
         }
 
@@ -868,8 +907,9 @@ try
     Write-Logging -Value "[$($script:AppName)] ### SCRIPT BEGIN #################################"
     Write-Logging -Value "[$($script:AppName)] Json version: $($AppConfigObject._version)"
 
-    # get system detail log
-    Get-LocalSystemDetails | Out-Null
+    # get system details log
+    $SystemDetails = Get-LocalSystemDetails
+    Write-Logging -Value "[$($script:AppName)] Local system details: $($SystemDetails | ConvertTo-Json -Depth 3 -Compress)" -StdOut 'None'
 
     # check if other installation exists
     Get-ApplicationStatus -InputObject $AppConfigObject | Out-Null
@@ -889,7 +929,7 @@ try
             }
             else
             {
-                throw "Download failed"
+                throw 'Download failed'
             }
 
             Get-Variable -Name 'DownloadResult' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
@@ -903,7 +943,7 @@ try
         if ($AppConfigObject.pre_setup.enabled -eq 'yes')
         {
             Write-Logging -Value "[$($script:AppName)] Start with Pre-Setup"
-            Install-Application -InputObject $AppConfigObject -Mode 'pre_setup'
+            Install-Application -InputObject $AppConfigObject.pre_setup -Scope 'pre_setup'
         }
         else
         {
@@ -914,8 +954,8 @@ try
     # run main-setup
     if ($script:RunStatus.main_setup)
     {
-        Write-Logging -Value "[$($script:AppName)] Start with Setup"
-        Install-Application -InputObject $AppConfigObject -Mode 'main_setup'
+        Write-Logging -Value "[$($script:AppName)] Start with Main-Setup"
+        Install-Application -InputObject $AppConfigObject.main_setup -Scope 'main_setup'
     }
     
     # run post-setup
@@ -925,7 +965,7 @@ try
         if ($AppConfigObject.post_setup.enabled -eq 'yes')
         {
             Write-Logging -Value "[$($script:AppName)] Start with Post-Setup"
-            Install-Application -InputObject $AppConfigObject -Mode 'post_setup'
+            Install-Application -InputObject $AppConfigObject.post_setup -Scope 'post_setup'
         }
     }
 

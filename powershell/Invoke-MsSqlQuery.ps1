@@ -30,7 +30,7 @@
 function Invoke-MsSqlQuery
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
         [Parameter(Mandatory = $True)]
@@ -43,7 +43,7 @@ function Invoke-MsSqlQuery
     try
     {
         $sqlConnection = New-Object System.Data.SqlClient.SqlConnection($ConnectionString)
-        $sqlCommand    = New-Object System.Data.SqlClient.SqlCommand($Query, $sqlConnection)
+        $sqlCommand = New-Object System.Data.SqlClient.SqlCommand($Query, $sqlConnection)
         $sqlConnection.Open()
 
         $sqlAdapter = New-Object System.Data.SqlClient.SqlDataAdapter $sqlCommand

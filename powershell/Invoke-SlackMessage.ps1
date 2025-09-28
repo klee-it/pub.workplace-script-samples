@@ -69,25 +69,25 @@
 ###
 ### FUNCTION: invoke Slack message
 ###
-Function Invoke-SlackMessage
+function Invoke-SlackMessage
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$True, ParameterSetName="Api")]
-        [ValidateScript({$_ -match '^xoxb-[0-9]{11}-[0-9]{13}-[0-9a-zA-Z]{24}$'})]
+        [Parameter(Mandatory = $True, ParameterSetName = 'Api')]
+        [ValidateScript({ $_ -match '^xoxb-[0-9]{11}-[0-9]{13}-[0-9a-zA-Z]{24}$' })]
         [String] $Token,
 
-        [Parameter(Mandatory=$True, ParameterSetName="Api")]
-        [ValidateScript({$_ -match '^C[0-9A-Z]{10}$'})]
+        [Parameter(Mandatory = $True, ParameterSetName = 'Api')]
+        [ValidateScript({ $_ -match '^C[0-9A-Z]{10}$' })]
         [String] $ChannelId,
 
-        [Parameter(Mandatory=$True, ParameterSetName="WebHook")]
-        [ValidateScript({$_ -match '^https://hooks.slack.com/services/.*'})]
+        [Parameter(Mandatory = $True, ParameterSetName = 'WebHook')]
+        [ValidateScript({ $_ -match '^https://hooks.slack.com/services/.*' })]
         [String] $URL,
 
-        [Parameter(Mandatory=$True)]
+        [Parameter(Mandatory = $True)]
         [ValidateNotNullOrEmpty()]
         [Object[]] $Message
     )
@@ -98,22 +98,23 @@ Function Invoke-SlackMessage
 
         # create request body
         $requestBody = [PSCustomObject]@{
-            "blocks" = @()
+            'blocks' = @()
         }
 
-        if ($PSCmdlet.ParameterSetName -eq 'Api') {
-            $requestBody | Add-Member -MemberType 'NoteProperty' -Name "channel" -Value "$($ChannelId)"
-            $requestBody | Add-Member -MemberType 'NoteProperty' -Name "text" -Value "It seems there is a problm with the blocks section - this is the fallback text"
+        if ($PSCmdlet.ParameterSetName -eq 'Api')
+        {
+            $requestBody | Add-Member -MemberType 'NoteProperty' -Name 'channel' -Value "$($ChannelId)"
+            $requestBody | Add-Member -MemberType 'NoteProperty' -Name 'text' -Value 'It seems there is a problm with the blocks section - this is the fallback text'
         }
 
         # create section
         foreach ($Line in $Message)
         {
             $requestBody.blocks += [PSCustomObject]@{
-                "type" = "section"
-                "text" = [PSCustomObject]@{
-                    "type" = "mrkdwn"
-                    "text" = "$($Line)"
+                'type' = 'section'
+                'text' = [PSCustomObject]@{
+                    'type' = 'mrkdwn'
+                    'text' = "$($Line)"
                 }
             }
         }
@@ -129,13 +130,15 @@ Function Invoke-SlackMessage
             ContentType = 'application/json'
         }
 
-        if ($PSCmdlet.ParameterSetName -eq 'Api') {
+        if ($PSCmdlet.ParameterSetName -eq 'Api')
+        {
             $webRequestSplat['Uri'] = 'https://slack.com/api/chat.postMessage'
             $webRequestSplat['Headers'] = @{
                 'Authorization' = "Bearer $($Token)"
             }
         }
-        elseif ($PSCmdlet.ParameterSetName -eq 'WebHook') {
+        elseif ($PSCmdlet.ParameterSetName -eq 'WebHook')
+        {
             $webRequestSplat['Uri'] = "$($URL)"
         }
 

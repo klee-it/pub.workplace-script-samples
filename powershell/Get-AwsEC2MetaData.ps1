@@ -54,21 +54,21 @@
 ###
 ### FUNCTION: Get AWS EC2 instance metadata
 ###
-Function Get-AwsEC2MetaData
+function Get-AwsEC2MetaData
 {
     [OutputType([System.Collections.Hashtable])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param (
-        [Parameter(Mandatory=$false)]
-        [ValidateScript({$_ -match '^http://'})]
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({ $_ -match '^http://' })]
         [String] $BaseUrl = 'http://169.254.169.254/latest',
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [String[]] $SubUrls = @('meta-data/instance-id'),
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('IMDSv1', 'IMDSv2', 'LocalSSM')]
         [String] $ImdsVersion = 'IMDSv1'
     )
@@ -89,7 +89,7 @@ Function Get-AwsEC2MetaData
                 }
                 catch
                 {
-                    Write-Warning "Failed to retrieve instance ID using Local SSM."
+                    Write-Warning 'Failed to retrieve instance ID using Local SSM.'
                 }
             }
 
@@ -106,7 +106,7 @@ Function Get-AwsEC2MetaData
                 }
                 catch
                 {
-                    Write-Warning "Failed to retrieve instance ID using IMDSv1. Attempting to use IMDSv2."
+                    Write-Warning 'Failed to retrieve instance ID using IMDSv1. Attempting to use IMDSv2.'
                     $ImdsVersion = 'IMDSv2'
                 }
             }
@@ -121,10 +121,10 @@ Function Get-AwsEC2MetaData
                     $requestApiTokenUri = "$($BaseUrl.TrimEnd('/'))/api/token"
     
                     # get token
-                    $ApiToken = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token-ttl-seconds" = "21600"} -Method 'PUT' -Uri "$($requestApiTokenUri)"
+                    $ApiToken = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token-ttl-seconds' = '21600' } -Method 'PUT' -Uri "$($requestApiTokenUri)"
                     
                     # get metadata information
-                    $outputInfo["$($requestUri)"] = Invoke-RestMethod -Headers @{"X-aws-ec2-metadata-token" = "$($ApiToken)"} -Method 'GET' -Uri "$($requestUri)"
+                    $outputInfo["$($requestUri)"] = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token' = "$($ApiToken)" } -Method 'GET' -Uri "$($requestUri)"
     
                     # clean-up
                     Get-Variable -Name 'requestUri' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
@@ -132,7 +132,7 @@ Function Get-AwsEC2MetaData
                 }
                 catch
                 {
-                    Write-Warning "Failed to retrieve instance ID using IMDSv2."
+                    Write-Warning 'Failed to retrieve instance ID using IMDSv2.'
                 }
             }
         }

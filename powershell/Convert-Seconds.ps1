@@ -35,21 +35,21 @@
 function Convert-Seconds
 {
     [OutputType([System.Double])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
-        [ValidateSet("Nanoseconds", "Microseconds", "Milliseconds", "Seconds", "Minutes", "Hours")]
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Nanoseconds', 'Microseconds', 'Milliseconds', 'Seconds', 'Minutes', 'Hours')]
         [String] $From,
         
-        [Parameter(Mandatory=$true)]
-        [ValidateSet("Nanoseconds", "Microseconds", "Milliseconds", "Seconds","Minutes","Hours")]
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Nanoseconds', 'Microseconds', 'Milliseconds', 'Seconds', 'Minutes', 'Hours')]
         [String] $To,
         
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [Double] $Value,
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [Int] $Precision = 4
     )
     
@@ -58,22 +58,22 @@ function Convert-Seconds
         # base is seconds
         switch ($From)
         {
-            "Nanoseconds"   { $value = $Value / 1000 / 1000 / 1000 }
-            "Microseconds"  { $value = $Value / 1000 / 1000 }
-            "Milliseconds"  { $value = $Value / 1000 }
-            "Seconds"       { $value = $Value }
-            "Minutes"       { $value = $Value * 60 }
-            "Hours"         { $value = $Value * 60 * 60 }
+            'Nanoseconds' { $value = $Value / 1000 / 1000 / 1000 }
+            'Microseconds' { $value = $Value / 1000 / 1000 }
+            'Milliseconds' { $value = $Value / 1000 }
+            'Seconds' { $value = $Value }
+            'Minutes' { $value = $Value * 60 }
+            'Hours' { $value = $Value * 60 * 60 }
         }
     
         switch ($To)
         {
-            "Nanoseconds"   { $value = $Value * 1000 * 1000 * 1000 }
-            "Microseconds"  { $value = $Value * 1000 * 1000 }
-            "Milliseconds"  { $value = $Value * 1000 }
-            "Seconds"       { return $value }
-            "Minutes"       { $Value = $Value / 60 }
-            "Hours"         { $Value = $Value / 60 / 60 }
+            'Nanoseconds' { $value = $Value * 1000 * 1000 * 1000 }
+            'Microseconds' { $value = $Value * 1000 * 1000 }
+            'Milliseconds' { $value = $Value * 1000 }
+            'Seconds' { return $value }
+            'Minutes' { $Value = $Value / 60 }
+            'Hours' { $Value = $Value / 60 / 60 }
         }
     
         Write-Output -InputObject ( [Math]::Round($value, $Precision, [MidPointRounding]::AwayFromZero) )

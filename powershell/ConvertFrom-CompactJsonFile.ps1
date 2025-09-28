@@ -28,23 +28,23 @@
 function ConvertFrom-CompactJsonFile
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [PSCustomObject] $InputObject
     )
     
     try
     {
         # Check if the input object has a schema property
-        if (-Not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object {$_.Name -eq 'Schema'}) )
+        if (-not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object { $_.Name -eq 'Schema' }) )
         {
             throw "The input object does not contain a 'Schema' property."
         }
 
         # Check if the input object has a values property
-        if (-Not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object {$_.Name -eq 'Values'}) )
+        if (-not ($InputObject.PSObject.BaseObject.GetEnumerator() | Where-Object { $_.Name -eq 'Values' }) )
         {
             throw "The input object does not contain a 'Values' property."
         }

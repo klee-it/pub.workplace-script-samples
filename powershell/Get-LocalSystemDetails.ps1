@@ -23,39 +23,57 @@
 function Get-LocalSystemDetails
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
-    param()
+    param(
+        [Parameter(Mandatory = $false)]
+        [Switch] $Detailed = $false
+    )
 
     try
     {
+        # get Windows principal object
+        $WindowsPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+
         # set system details object
         $SystemDetails = [PSCustomObject]@{
-            PowerShellVersion       = "$($PSVersionTable.PSVersion)"
-            PowerShellEdition       = "$($PSVersionTable.PSEdition)"
-            Is64BitProcess          = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
-            Is64BitOperatingSystem  = [Environment]::Is64BitOperatingSystem
-            RuntimeUser             = "$([System.Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty Name)"
-            RuntimeUserScope        = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'System' } else { 'User' }
-            LastBootDateTime        = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object -ExpandProperty LastBootUpTime
-            LastBootUpTime          = $null
-            PendingReboot           = $false
-            ComputerInfo            = $null
-            OsType                  = $null
+            PowerShellVersion      = "$($PSVersionTable.PSVersion)"
+            PowerShellEdition      = "$($PSVersionTable.PSEdition)"
+            Is64BitProcess         = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
+            Is64BitOperatingSystem = [Environment]::Is64BitOperatingSystem
+            RuntimeUser            = [PSCustomObject]@{
+                Name               = $WindowsPrincipal.Identity.Name
+                Sid                = $WindowsPrincipal.Identity.User.Value
+                AuthenticationType = $WindowsPrincipal.Identity.AuthenticationType
+                IsAuthenticated    = $WindowsPrincipal.Identity.IsAuthenticated
+                IsSystem           = $WindowsPrincipal.Identity.IsSystem
+                IsAdmin            = $WindowsPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')
+                Groups             = $WindowsPrincipal.Identity.Groups
+            }
+            RuntimeUserScope       = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'System' } else { 'User' }
+            LastBootDateTime       = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object -ExpandProperty LastBootUpTime
+            LastBootUpTime         = $null
+            PendingReboot          = $false
+            ComputerInfo           = $null
+            OsType                 = $null
         }
 
         # PowerShell v7
         if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.PSVersion.major -ge 7)
         {
             $SystemDetails.LastBootUpTime = Get-Uptime
-            $SystemDetails.ComputerInfo = Get-ComputerInfo
             $SystemDetails.OsType = $PSVersionTable.OS
+
+            if ($Detailed)
+            {
+                $SystemDetails.ComputerInfo = Get-ComputerInfo
+            }
         }
 
         # check if a reboot is pending
         try
         {
-            $SystemDetails.PendingReboot = (New-Object -ComObject "Microsoft.Update.SystemInfo").RebootRequired
+            $SystemDetails.PendingReboot = (New-Object -ComObject 'Microsoft.Update.SystemInfo').RebootRequired
         }
         catch
         {
