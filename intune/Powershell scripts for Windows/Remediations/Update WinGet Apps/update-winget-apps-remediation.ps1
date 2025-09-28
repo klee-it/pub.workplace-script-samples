@@ -26,10 +26,10 @@ $script:Scope = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'Machine' } els
 
 # set logging parameters
 $script:enable_write_logging = $true
-$script:LogFilePath          = "C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\Custom\Remediations\UpdateWingetApps"
-$script:LogFileName          = "$($script:MyScriptInfo.BaseName)-$($script:Scope).log"
-$script:LogStream            = $null
-$script:LogOptionAppend      = $false
+$script:LogFilePath = 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs\Custom\Remediations\UpdateWingetApps'
+$script:LogFileName = "$($script:MyScriptInfo.BaseName)-$($script:Scope).log"
+$script:LogStream = $null
+$script:LogOptionAppend = $false
 
 ###
 ### FUNCTION: write a log of the script
@@ -37,24 +37,24 @@ $script:LogOptionAppend      = $false
 function Write-Logging
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Value = '',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [String] $Module = '',
 
-        [Parameter(Mandatory=$false)]
-        [ValidateScript({$_ -eq -1 -or $_ -match "^\d+$"})]
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({ $_ -eq -1 -or $_ -match '^\d+$' })]
         [int] $Level = -1,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('None', 'Host', 'Warning')]
         [String] $StdOut = 'Host',
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
     
@@ -62,12 +62,12 @@ function Write-Logging
     {
         # set log file path
         $FilePath = "$($script:LogFilePath)"
-        If (-Not (Test-Path -Path "$($FilePath)"))
+        if (-not (Test-Path -Path "$($FilePath)"))
         {
-            New-Item -Path "$($FilePath)" -ItemType "Directory" -Force | Out-Null
+            New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
         
-        $File   = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
+        $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
         
         # set prefix
@@ -76,21 +76,21 @@ function Write-Logging
             # default level
             -1 { $prefix = '' }
             # root level
-            0  { $prefix = '# ' }
+            0 { $prefix = '# ' }
             # sub level
-            default { $prefix = "$((1..$($Level) | ForEach-Object { "|__" }) -join '') " }
+            default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
         
         # set log message
         $logMessage = "$($prefix)$($Value)"
-        $logDetails = "[$(Get-Date -Format "yyyy-MM-dd HH:mm:ss")] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
+        $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
 
         # write to stdout
         switch ($StdOut)
         {
-            'Host'        { $OptionsSplat['Object'] = "$($logMessage)"; Write-Host @OptionsSplat }
-            'Warning'     { $OptionsSplat['Message'] = "$($logMessage)"; Write-Warning @OptionsSplat }
-            default       { break }
+            'Host' { $OptionsSplat['Object'] = "$($logMessage)"; Write-Host @OptionsSplat }
+            'Warning' { $OptionsSplat['Message'] = "$($logMessage)"; Write-Warning @OptionsSplat }
+            default { break }
         }
 
         # check size of log file
@@ -99,7 +99,7 @@ function Write-Logging
             # if max size reached, create new log file
             if ((Get-Item -Path "$($File)").length -gt 10Mb)
             {
-                if (-Not ( [string]::IsNullOrEmpty($script:LogStream) ) )
+                if (-not ( [string]::IsNullOrEmpty($script:LogStream) ) )
                 {
                     $script:LogStream.close()
                     $script:LogStream = $null
@@ -117,13 +117,13 @@ function Write-Logging
             }
             
             # write log line
-            if (-Not ( [string]::IsNullOrEmpty($script:LogStream) ) )
+            if (-not ( [string]::IsNullOrEmpty($script:LogStream) ) )
             {
                 $script:LogStream.WriteLine("$($logDetails) $($logMessage)")
             }
             else
             {
-                throw "Log stream failed to load"
+                throw 'Log stream failed to load'
             }
         }
 
@@ -141,42 +141,73 @@ function Write-Logging
 }
 
 ###
-### FUNCTION: Checks WinGet apps for available updates and optionally upgrades them
+### FUNCTION: Manage WinGet apps for installation, removal or available updates and optionally upgrades them
 ###
-function Update-WingetApps
+function Deploy-WingetApps
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName="Default")]
+    [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('user', 'machine')]
         [String] $Scope = 'user',
 
-        [Parameter(Mandatory=$false)]
-        [Switch] $IsCheckOnly = $false,
+        [Parameter(Mandatory = $false)]
+        [Switch] $Install = $false,
 
-        [Parameter(Mandatory=$false)]
-        [Switch] $DisableProgress
+        [Parameter(Mandatory = $false)]
+        [Switch] $Removal = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $Update = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $CheckAvailableUpdates = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $ListInstalled = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $ListPinned = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $DisableProgress,
+
+        [Parameter(Mandatory = $false)]
+        [Object[]] $AdditionalArguments = @(),
+
+        [Parameter(Mandatory = $false)]
+        [bool] $IncludeScope = $true,
+
+        [Parameter(Mandatory = $false)]
+        [Object[]] $Exclude = @()
     )
 
     function Get-WinGetUserSettings
     {
         [OutputType([System.Management.Automation.PSObject])]
-        [CmdLetBinding(DefaultParameterSetName="Default")]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
         param(
-            [Parameter(Mandatory=$false)]
-            [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
-            [String] $Path = "C:\Users\$($Env:USERNAME)\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
+            [Parameter(Mandatory = $false)]
+            [String] $Path = "$($Env:LOCALAPPDATA)\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
         )
 
         try
         {
+            Write-Verbose -Message "WinGet user settings path: $($Path)"
+
+            if (-not (Test-Path -Path "$($Path)" -PathType 'Leaf') )
+            {
+                throw 'WinGet user settings file not found.'
+            }
+
             # Get user-specific settings for WinGet
-            Write-Verbose -Message "Read WinGet user settings..."
-            Write-Output -InputObject (Get-Content -Path "$($Path)" -Raw | ConvertFrom-Json)
+            Write-Verbose -Message 'Read WinGet user settings'
+            $Settings = Get-Content -Path "$($Path)" -Raw | ConvertFrom-Json
             Write-Verbose -Message "Settings: $($Settings | ConvertTo-Json -Depth 5 -Compress)"
+            Write-Output -InputObject $Settings
         }
         catch
         {
@@ -188,24 +219,36 @@ function Update-WingetApps
     function New-WinGetUserSettings
     {
         [OutputType([System.Management.Automation.PSObject])]
-        [CmdLetBinding(DefaultParameterSetName="Default")]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
         param(
-            [Parameter(Mandatory=$false)]
-            [ValidateScript({Test-Path -Path $_ -PathType 'Leaf'})]
-            [String] $Path = "C:\Users\$($Env:USERNAME)\AppData\Local\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json",
+            [Parameter(Mandatory = $false)]
+            [String] $Path = "$($Env:LOCALAPPDATA)\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json",
 
-            [Parameter(Mandatory=$false)]
+            [Parameter(Mandatory = $false)]
             [System.Management.Automation.PSObject] $UserSettings = (Get-WinGetUserSettings -Path "$($Path)"),
 
-            [Parameter(Mandatory=$false)]
+            [Parameter(Mandatory = $false)]
             [System.Management.Automation.PSObject] $NewSettings
         )
 
         try
         {
+            Write-Verbose -Message "WinGet user settings path: $($Path)"
+
+            # Check if folder exists
+            if (-not (Test-Path -Path "$($Path)" -PathType 'Leaf'))
+            {
+                $ParentPath = Split-Path -Path "$($Path)" -Parent
+
+                if (-not (Test-Path -Path "$($ParentPath)" -PathType 'Container'))
+                {
+                    New-Item -Path "$($ParentPath)" -ItemType 'Directory' -Force | Out-Null
+                }
+            }
+
             # Add new settings to user settings
-            Write-Verbose -Message "Adding new settings to WinGet user settings..."
+            Write-Verbose -Message 'Adding new settings to WinGet user settings'
             foreach ($setting in $NewSettings)
             {
                 $nameParts = $setting.Name -split '\.'
@@ -215,7 +258,8 @@ function Update-WingetApps
                 {
                     $part = $nameParts[$i]
 
-                    if (-not ($current.PSObject.Properties.Name -contains $part)) {
+                    if (-not ($current.PSObject.Properties.Name -contains $part))
+                    {
                         $current | Add-Member -MemberType NoteProperty -Name $part -Value ([PSCustomObject]@{})
                     }
 
@@ -227,141 +271,425 @@ function Update-WingetApps
             }
 
             # Set user-specific settings for WinGet
-            Write-Verbose -Message "Write WinGet user settings..."
+            Write-Verbose -Message 'Write WinGet user settings'
             $UserSettings | ConvertTo-Json -Depth 20 | Out-File -FilePath "$($Path)" -Encoding 'UTF8' -Force
+
+            # Return updated user settings
+            Write-Output -InputObject (Get-WinGetUserSettings -Path "$($Path)")
         }
         catch
         {
-            Write-Error -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+            Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
         }
     }
 
-    try
+    function ConvertFrom-WinGetCliOutput
     {
-        $outputInfo = [PSCustomObject]@{
-            UpdatesAvailable = $false
-            Message          = ''
-            ConsoleOutputCheck  = ''
-            ConsoleOutputUpdate = ''
-        }
+        [OutputType([System.Management.Automation.PSObject])]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
-        # check if AppInstaller is installed
-        Write-Verbose -Message "Check if AppInstaller is installed..."
+        param(
+            [Parameter(Mandatory = $false)]
+            [String] $InputString = '',
+
+            [Parameter(Mandatory = $false)]
+            [Switch] $IsTable = $false
+        )
+
         try
         {
-            $AppInstaller = Get-AppxProvisionedPackage -Online -ErrorAction 'Stop' | Where-Object {$_.DisplayName -eq 'Microsoft.DesktopAppInstaller'}
-            Write-Verbose -Message "AppInstaller Version: $([Version]$AppInstaller.Version)"
-
-            if (-not $AppInstaller)
+            # validate input
+            if ( [String]::IsNullOrEmpty($InputString) )
             {
-                throw "AppInstaller not installed"
+                throw 'InputString is null or empty.'
+            }
+            
+            # create output object
+            $outputInfo = [PSCustomObject]@{
+                Content        = @()
+                AdditionalBody = @()
+                RawContent     = "$($InputString.Clone().Trim())"
+            }
+
+            # Split the input string into an array of lines
+            $InputObject = "$($InputString.Clone())".Split("`n")
+            Write-Verbose -Message "Input Object Length: $($InputObject.Length)"
+
+            # define how the input should be parsed
+            if ($IsTable)
+            {
+                $lineIndex = 0
+                foreach ($line in $InputObject)
+                {
+                    Write-Verbose -Message "Line Index: $($lineIndex)"
+
+                    if ( ($lineIndex -eq 0) -and ($line -match '^(.+?)\s{2,}(.+?)\s{2,}(.+?)(?:\s{2,}(.+?))?\s{2,}(.+)$') )
+                    {
+                        # capture header line
+                        Write-Verbose -Message "Capture header line: '$($line)'"
+                        $TableHeaderComponents = $line | Select-String -Pattern '^(?<Name>Name\s+)(?<Id>Id\s+)(?<Version>Version\s+)(?<Available>Available\s+)?(?<Source>Source\s*)'
+
+                        if (-not $TableHeaderComponents)
+                        {
+                            throw 'Header line not found.'
+                        }
+
+                        # Capture table components
+                        $TableHeaderLength = $line.Length + 10
+                        $TableHeaderComponentsName = $TableHeaderComponents.Matches.Captures.Groups['Name']
+                        $TableHeaderComponentsId = $TableHeaderComponents.Matches.Captures.Groups['Id']
+                        $TableHeaderComponentsVersion = $TableHeaderComponents.Matches.Captures.Groups['Version']
+                        $TableHeaderComponentsAvailable = $TableHeaderComponents.Matches.Captures.Groups['Available']
+                        $TableHeaderComponentsSource = $TableHeaderComponents.Matches.Captures.Groups['Source']
+
+                        Write-Verbose -Message "Column 'Name' '$($TableHeaderComponentsName.Index)' '$($TableHeaderComponentsName.Length)': '$($TableHeaderComponentsName)'"
+                        Write-Verbose -Message "Column 'Id' '$($TableHeaderComponentsId.Index)' '$($TableHeaderComponentsId.Length)': '$($TableHeaderComponentsId)'"
+                        Write-Verbose -Message "Column 'Version' '$($TableHeaderComponentsVersion.Index)' '$($TableHeaderComponentsVersion.Length)': '$($TableHeaderComponentsVersion)'"
+                        Write-Verbose -Message "Column 'Available' '$($TableHeaderComponentsAvailable.Index)' '$($TableHeaderComponentsAvailable.Length)': '$($TableHeaderComponentsAvailable)'"
+                        Write-Verbose -Message "Column 'Source' '$($TableHeaderComponentsSource.Index)' '$($TableHeaderComponentsSource.Length)': '$($TableHeaderComponentsSource)'"
+                    }
+                    elseif ($lineIndex -eq 1 -and ($line -match '^[-]{5,}.*$'))
+                    {
+                        # skip separator line
+                        Write-Verbose -Message 'Skip separator line'
+                    }
+                    elseif ( ($lineIndex -gt 0) -and ($line -match '^(.+?)\s{1,}([a-zA-Z]\S+?\.\S+?)\s{1,}(.+?)(?:\s{1,}(.+?))?\s{1,}(.+)$') )
+                    {
+                        if (-not ($TableHeaderLength) )
+                        {
+                            throw 'Header length not found.'
+                        }
+                        
+                        # capture body lines
+                        Write-Verbose -Message "Line: '$($line)'"
+                        $linePadded = $line.PadRight($TableHeaderLength, ' ')
+                        Write-Verbose -Message "Line Padded: '$($linePadded)'"
+
+                        $outputInfo.Content += [PSCustomObject]@{
+                            Name      = "$($linePadded.Substring($TableHeaderComponentsName.Index, $TableHeaderComponentsName.Length))".Trim()
+                            Id        = "$($linePadded.Substring($TableHeaderComponentsId.Index, $TableHeaderComponentsId.Length))".Trim()
+                            Version   = "$($linePadded.Substring($TableHeaderComponentsVersion.Index, $TableHeaderComponentsVersion.Length))".Trim()
+                            Available = "$($linePadded.Substring($TableHeaderComponentsAvailable.Index, $TableHeaderComponentsAvailable.Length))".Trim()
+                            Source    = "$($linePadded.Substring($TableHeaderComponentsSource.Index, $TableHeaderComponentsSource.Length))".Trim()
+                        }
+                    }
+                    else
+                    {
+                        # capture additional body lines
+                        Write-Verbose -Message "Additional Line: '$($line)'"
+                        $TrimmedLine = "$($line.Trim())"
+                        if ([String]::IsNullOrEmpty($TrimmedLine))
+                        {
+                            Write-Verbose -Message 'Skip empty line'
+                        }
+                        else
+                        {
+                            $outputInfo.AdditionalBody += "$($TrimmedLine)"
+                        }
+                    }
+
+                    # increment line index
+                    $lineIndex++
+                }
+            }
+            else
+            {
+                Write-Verbose -Message 'Raw output will be returned'
             }
         }
         catch
         {
             Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
         }
-
-        # determine which winget executable to use
-        Write-Verbose -Message "Determine WinGet executable..."
-        $WinGetDirectories = @()
-        $WinGetDirectories += "C:\Users\$($Env:USERNAME)\AppData\Local\Microsoft\WindowsApps\winget.exe"
-        $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "winget.exe" } | Select-Object -ExpandProperty FullName
-        $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "AppInstallerCLI.exe" } | Select-Object -ExpandProperty FullName
-        Write-Verbose -Message "WinGet directories: $($WinGetDirectories -join ', ')"
-
-        # determine which winget executable to use
-        $Winget = $WinGetDirectories | Where-Object { Test-Path -Path "$($_)" -PathType 'Leaf' } | Select-Object -First 1
-        Write-Verbose -Message "WinGet executable: $($Winget)"
-
-        # clean-up
-        Get-Variable -Name "WinGetDirectories" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name "AppInstaller" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-
-        # check if WinGet source is available
-        Write-Verbose -Message "WinGet source: $($Winget)"
-        if (-Not $Winget)
+        finally
         {
-            throw "WinGet not found"
+            Write-Output -InputObject $outputInfo
+        }
+    }
+
+    function Get-WinGetExecutable
+    {
+        [OutputType([System.String])]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
+
+        param()
+
+        try
+        {
+            # check if AppInstaller is installed
+            Write-Verbose -Message 'Check if AppInstaller is installed'
+            try
+            {
+                $AppInstaller = Get-AppxProvisionedPackage -Online -ErrorAction 'Stop' | Where-Object { $_.DisplayName -eq 'Microsoft.DesktopAppInstaller' }
+                Write-Verbose -Message "AppInstaller Version: $([Version]$AppInstaller.Version)"
+            }
+            catch
+            {
+                Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+            }
+            finally
+            {
+                Get-Variable -Name 'AppInstaller' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            }
+
+            # search for winget executable
+            Write-Verbose -Message 'Search for winget executable'
+            $WinGetDirectories = @()
+            $WinGetDirectories += "C:\Users\$($Env:USERNAME)\AppData\Local\Microsoft\WindowsApps\winget.exe"
+            $WinGetDirectories += Resolve-Path 'C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*_*__8wekyb3d8bbwe\winget.exe' -ErrorAction 'SilentlyContinue'
+            # $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "winget.exe" } | Select-Object -ExpandProperty FullName
+            # $WinGetDirectories += Get-ChildItem -Path "C:\Program Files\WindowsApps" -Recurse -File -ErrorAction 'SilentlyContinue' | Where-Object { $_.Name -eq "AppInstallerCLI.exe" } | Select-Object -ExpandProperty FullName
+            Write-Verbose -Message "WinGet directories: $($WinGetDirectories -join ', ')"
+
+            # determine which winget executable to use
+            Write-Verbose -Message 'Determine which winget executable to use'
+            $WingetExecutable = $WinGetDirectories | Where-Object { Test-Path -Path "$($_)" -PathType 'Leaf' } | Select-Object -First 1
+            Write-Verbose -Message "WinGet executable: $($WingetExecutable)"
+
+            # clean-up
+            Get-Variable -Name 'WinGetDirectories' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+
+            # check if WinGet executable is available
+            if (-not $WingetExecutable)
+            {
+                throw 'WinGet not found'
+            }
+
+            # output winget executable
+            Write-Output -InputObject "$($WingetExecutable)"
+        }
+        catch
+        {
+            Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        }
+    }
+
+    function Invoke-WingetCommand
+    {
+        [OutputType([System.String])]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
+
+        param(
+            [Parameter(Mandatory = $false)]
+            [ValidateScript({ Test-Path -Path "$($_)" -PathType 'Leaf' })]
+            [String] $FilePath,
+
+            [Parameter(Mandatory = $false)]
+            [Object[]] $AdditionalArguments = @()
+        )
+
+        try
+        {
+            Write-Verbose -Message "File Path: $($FilePath)"
+            Write-Verbose -Message "Additional Arguments: $($AdditionalArguments -join ', ')"
+            $AdditionalArguments = $AdditionalArguments | Select-Object -Unique
+            Write-Verbose -Message "Unique Additional Arguments: $($AdditionalArguments -join ', ')"
+
+            # create splat
+            $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
+            $ProcessStartInfo.FileName = "$($FilePath)"
+            $ProcessStartInfo.Arguments = "$($AdditionalArguments -join ' ')"
+            $ProcessStartInfo.UseShellExecute = $false
+            $ProcessStartInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+            $ProcessStartInfo.RedirectStandardOutput = $true
+
+            $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
+            
+            $ProcessResult = $Process.StandardOutput.ReadToEnd()
+            
+            $Process.WaitForExit()
+
+            Write-Verbose -Message "Output:$([Environment]::NewLine)$($ProcessResult)"
+            Write-Output -InputObject "$($ProcessResult)"
+
+            # clean-up
+            Get-Variable -Name 'ProcessStartInfo' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'Process' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'ProcessResult' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        catch
+        {
+            Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        }
+    }
+
+    try
+    {
+        $outputInfo = [PSCustomObject]@{
+            Scope            = "$($Scope)"
+            Command          = ''
+            UpdatesAvailable = $false
+            ConsoleOutput    = ''
+        }
+
+        # get WinGet excutable
+        $WingetExecutable = Get-WinGetExecutable
+        
+        # get WinGet user settings path
+        if ($Scope -eq 'Machine')
+        {
+            $WingetUserSettingsPath = 'C:\Windows\System32\config\systemprofile\AppData\Local\Microsoft\WinGet\Settings\defaultState\settings.json'
+        }
+        else
+        {
+            $WingetUserSettingsPath = "$($Env:LOCALAPPDATA)\Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\settings.json"
         }
 
         # set WinGet user settings to disable progress reporting
         if ($DisableProgress)
         {
-            Write-Verbose -Message "Set user settings to disable progress reporting..."
-            $WingetUserSettings = Get-WinGetUserSettings
-            New-WinGetUserSettings -UserSettings $WingetUserSettings.PSObject.Copy() -NewSettings @( @{ Name = 'visual.progressBar'; Value = 'disabled' } )
-            Write-Verbose -Message "WinGet user settings updated."
+            Write-Verbose -Message 'Set user settings to disable progress reporting'
+            $WingetUserSettings = Get-WinGetUserSettings -Path "$($WingetUserSettingsPath)"
+            $NewWingetUserSettings = New-WinGetUserSettings -Path "$($WingetUserSettingsPath)" -UserSettings $WingetUserSettings.PSObject.Copy() -NewSettings @( @{ Name = 'visual.progressBar'; Value = 'disabled' } )
+            Write-Verbose -Message "WinGet user settings updated: $($NewWingetUserSettings | ConvertTo-Json -Depth 5 -Compress)"
+            Get-Variable -Name 'NewWingetUserSettings' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
 
-        Write-Verbose -Message "Run upgrade by WinGet (User: $($env:USERNAME) / Scope: $($Scope))..."
+        Write-Verbose -Message "Run upgrade by WinGet (User: $($env:USERNAME) / Scope: $($Scope))"
 
-        # list available updates
-        Write-Verbose -Message "Check and detect available updates..."
-        $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
-        $ProcessStartInfo.FileName = "$($Winget)"
-        $ProcessStartInfo.Arguments = "upgrade --accept-source-agreements --scope $($Scope)"
-        $ProcessStartInfo.UseShellExecute = $false
-        $ProcessStartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
-        $ProcessStartInfo.RedirectStandardOutput = $true
-        $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
-        $updates = $Process.StandardOutput.ReadToEnd()
-        $Process.WaitForExit()
-        Write-Verbose -Message "Updates:$([Environment]::NewLine)$($updates)"
-        $outputInfo.ConsoleOutputCheck = "$($updates)"
-
-        # check result if updates are available
-        $updatesAvailable = $updates | Select-String -Pattern '[0-9]+[ \t]*(?:upgrades available|Aktualisierungen verfügbar)' -Quiet
-        
-        # clean-up
-        Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name "Process" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name "updates" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-
-        if ($updatesAvailable)
+        # include scope if specified
+        if ($IncludeScope)
         {
-            if ($IsCheckOnly -eq $false)
+            $AdditionalArguments += "--scope $($Scope)"
+        }
+
+        # exclude apps if specified
+        if ($Exclude -and $Exclude.Count -gt 0)
+        {
+            foreach ($AppId in $Exclude)
             {
-                # updates available
-                Write-Verbose -Message "Updates available, run upgrade process"
-                $ProcessStartInfo = New-Object Diagnostics.ProcessStartInfo
-                $ProcessStartInfo.FileName = "$($Winget)"
-                $ProcessStartInfo.Arguments = "upgrade --all --silent --force --accept-source-agreements --disable-interactivity --scope $($Scope)"
-                $ProcessStartInfo.UseShellExecute = $false
-                $ProcessStartInfo.StandardOutputEncoding = [Text.Encoding]::UTF8
-                $ProcessStartInfo.RedirectStandardOutput = $true
-                $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
-                $updates = $Process.StandardOutput.ReadToEnd()
-                $Process.WaitForExit()
-                Write-Verbose -Message "$([Environment]::NewLine)$($updates)"
-                $outputInfo.ConsoleOutputUpdate = "$($updates)"
+                try
+                {
+                    Write-Verbose -Message "Add pinned app: $($AppId)"
+                    $Splat = @{
+                        FilePath            = "$($WingetExecutable)"
+                        AdditionalArguments = @('pin', 'add', "--id $($AppId)", '--exact', '--accept-source-agreements', '--disable-interactivity')
+                    }
+                    Write-Verbose -Message "Splat: $($Splat | ConvertTo-Json -Compress -Depth 5)"
     
-                # clean-up
-                Get-Variable -Name "ProcessStartInfo" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                Get-Variable -Name "Process" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                Get-Variable -Name "updates" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-    
-                Write-Verbose -Message "WinGet upgrade done"
-                $outputInfo.UpdatesAvailable = $true
-                $outputInfo.Message          = "WinGet upgrade done"
+                    $CliOutput = Invoke-WingetCommand @Splat
+                    Write-Verbose -Message "CLI Output:$([Environment]::NewLine)$($CliOutput)"
+                    Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                }
+                catch
+                {
+                    Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+                }
             }
-            else
+        }
+
+        # check and detect available updates
+        if ($CheckAvailableUpdates)
+        {
+            Write-Verbose -Message 'Check and detect available updates'
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('upgrade', '--accept-source-agreements') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)" -IsTable
+            $outputInfo.UpdatesAvailable = $outputInfo.ConsoleOutput.Content.Count -gt 0
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        # check and install updates
+        elseif ($Update)
+        {
+            Write-Verbose -Message 'Check and install updates'
+            $AdditionalArguments += if ( "$( $AdditionalArguments -join ' ' )" -notlike '*--id *' ) { '--all' }
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('upgrade', '--silent', '--force', '--accept-source-agreements', '--disable-interactivity') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)" -IsTable
+            $outputInfo.UpdatesAvailable = $outputInfo.ConsoleOutput.Content.Count -gt 0
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        # install Winget app
+        elseif ($Install)
+        {
+            Write-Verbose -Message 'Install new app'
+            if ( "$( $AdditionalArguments -join ' ' )" -notlike '*--id *' )
             {
-                Write-Verbose -Message "Updates available, but check-only mode is enabled"
-                $outputInfo.UpdatesAvailable = $true
-                $outputInfo.Message          = "Updates available, but check-only mode is enabled"
+                throw "No app Id specified. Use -AdditionalArguments @('--id <AppId>') to specify the app Id."
             }
+
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('install', '--silent', '--force', '--accept-package-agreements', '--accept-source-agreements', '--disable-interactivity') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)"
+            $outputInfo.UpdatesAvailable = $outputInfo.ConsoleOutput.Content.Count -gt 0
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        # remove Winget app
+        elseif ($Removal)
+        {
+            Write-Verbose -Message 'Remove app'
+            if ( "$( $AdditionalArguments -join ' ' )" -notlike '*--id *' )
+            {
+                throw "No app Id specified. Use -AdditionalArguments @('--id <AppId>') to specify the app Id."
+            }
+
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('remove', '--silent', '--force', '--accept-source-agreements', '--disable-interactivity') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)"
+            $outputInfo.UpdatesAvailable = $outputInfo.ConsoleOutput.Content.Count -gt 0
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        # list installed Winget apps
+        elseif ($ListInstalled)
+        {
+            Write-Verbose -Message 'List installed apps'
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('list', '--accept-source-agreements', '--disable-interactivity') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)" -IsTable
+            $outputInfo.UpdatesAvailable = if ( ($outputInfo.ConsoleOutput.Content.Available | Where-Object { [String]::IsNullOrEmpty($_) -eq $false } | Measure-Object).Count -gt 0) { $true } else { $false }
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        }
+        # list pinned Winget apps
+        elseif ($ListPinned)
+        {
+            Write-Verbose -Message 'List pinned apps'
+            $Splat = @{
+                FilePath            = "$($WingetExecutable)"
+                AdditionalArguments = @('pin', 'list', '--accept-source-agreements', '--disable-interactivity') + $AdditionalArguments
+            }
+
+            $outputInfo.Command = "$($Splat.FilePath) $($Splat.AdditionalArguments -join ' ')"
+            $CliOutput = Invoke-WingetCommand @Splat
+            $outputInfo.ConsoleOutput = ConvertFrom-WinGetCliOutput -InputString "$($CliOutput)" -IsTable
+            $outputInfo.UpdatesAvailable = if ( ($outputInfo.ConsoleOutput.Content.Available | Where-Object { [String]::IsNullOrEmpty($_) -eq $false } | Measure-Object).Count -gt 0) { $true } else { $false }
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
         else
         {
-            Write-Verbose -Message "No updates available"
-            $outputInfo.UpdatesAvailable = $false
-            $outputInfo.Message          = "No updates available"
+            throw 'No action specified. Use -Update or -CheckAvailableUpdates to check for available updates.'
         }
-        
-        # clean-up
-        Get-Variable -Name "updatesAvailable" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name "Winget" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
         Write-Output -InputObject $outputInfo
     }
@@ -371,14 +699,43 @@ function Update-WingetApps
     }
     finally
     {
+        # remove pinned apps if specified
+        if ($Exclude -and $Exclude.Count -gt 0)
+        {
+            foreach ($AppId in $Exclude)
+            {
+                try
+                {
+                    Write-Verbose -Message "Remove pinned app: $($AppId)"
+                    $Splat = @{
+                        FilePath            = "$($WingetExecutable)"
+                        AdditionalArguments = @('pin', 'remove', "--id $($AppId)", '--exact', '--accept-source-agreements', '--disable-interactivity')
+                    }
+                    Write-Verbose -Message "Splat: $($Splat | ConvertTo-Json -Compress -Depth 5)"
+    
+                    $CliOutput = Invoke-WingetCommand @Splat
+                    Write-Verbose -Message "CLI Output:$([Environment]::NewLine)$($CliOutput)"
+                    Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'CliOutput' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                }
+                catch
+                {
+                    Write-Warning -Message "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+                }
+            }
+        }
+
         # Reset WinGet user settings
         if ($WingetUserSettings)
         {
-            Write-Verbose -Message "Reset WinGet user settings to previous state..."
-            New-WinGetUserSettings -UserSettings $WingetUserSettings -NewSettings $null
-            Write-Verbose -Message "WinGet user settings reset to previous state."
-            Get-Variable -Name "WingetUserSettings" -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+            Write-Verbose -Message 'Reset WinGet user settings to previous state'
+            New-WinGetUserSettings -Path "$($WingetUserSettingsPath)" -UserSettings $WingetUserSettings -NewSettings $null | Out-Null
+            Get-Variable -Name 'WingetUserSettings' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
+        
+        # clean-up
+        Get-Variable -Name 'WingetExecutable' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+        Get-Variable -Name 'WingetUserSettingsPath' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
 }
 
@@ -391,9 +748,8 @@ try
 
     # Check for updates
     Write-Logging -Level 0 -Value "Check for updates by WinGet (User: $($env:USERNAME) / Scope: $($script:Scope))..."
-    $result = Update-WingetApps -Scope "$($script:Scope)"
-    Write-Logging -Level 1 -Value "Result: $($result | Select-Object UpdatesAvailable, Message | ConvertTo-Json -Depth 5 -Compress)"
-    Write-Logging -Level 1 -Value "Console Output Update:$([Environment]::NewLine)$($result.ConsoleOutputUpdate)"
+    $result = Deploy-WingetApps -Scope "$($script:Scope)" -Update -DisableProgress
+    Write-Logging -Level 1 -Value "Result: $($result | ConvertTo-Json -Depth 5 -Compress)"
 
     Write-Logging -Value '### SCRIPT END ###################################'
 }
@@ -405,9 +761,9 @@ catch
 finally
 {
     # close log stream
-    if (-Not ( [string]::IsNullOrEmpty($script:LogStream) ) )
+    if (-not ( [string]::IsNullOrEmpty($script:LogStream) ) )
     {
-        Write-Logging -Value "Log stream closed"
+        Write-Logging -Value 'Log stream closed'
         $script:LogStream.close()
         $script:LogStream = $null
     }
