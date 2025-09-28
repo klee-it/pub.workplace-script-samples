@@ -156,11 +156,7 @@ function Get-LocalSystemDetails
         $SystemDetails = [PSCustomObject]@{
             PowerShellVersion      = "$($PSVersionTable.PSVersion)"
             PowerShellEdition      = "$($PSVersionTable.PSEdition)"
-<<<<<<< HEAD:intune/Powershell scripts for Windows/App Deployment/kace-app-installation-installation.ps1
             Is64BitProcess         = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
-=======
-            Is64BitProcess         = [Environment]::Is64BitProcess
->>>>>>> e21cb9ddd944c22935434baa4e736e095fb8a15f:windows/Install-Application.ps1
             Is64BitOperatingSystem = [Environment]::Is64BitOperatingSystem
             RuntimeUser            = "$([System.Security.Principal.WindowsIdentity]::GetCurrent() | Select-Object -ExpandProperty Name)"
             LastBootDateTime       = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object -ExpandProperty LastBootUpTime
