@@ -1,21 +1,51 @@
 <#
 .SYNOPSIS
-    Converts a PSObject to a filter script.
+    Converts a PSObject or custom expression to a filter script.
 
 .DESCRIPTION
     This function takes a PSObject as input and generates a filter script based on the properties and values of the object.
+    Alternatively, accepts a custom filter expression string for direct filter creation.
     The filter script can be used to filter data based on the specified conditions.
+    Supports multiple output types (ScriptBlock, String) and formats (PowerShell, ActiveDirectory, EntraId).
 
 .PARAMETER Filter
-    The PSObject containing the filter conditions. This parameter is mandatory and cannot be null or empty.
+    The PSObject containing the filter conditions. This parameter is mandatory for the 'Default' parameter set and cannot be null or empty.
+    Expected structure: [PSCustomObject]@{ and = @(...); or = @(...) }
+
+.PARAMETER Expression
+    A custom filter expression string. When provided, this parameter takes precedence over the Filter parameter.
+    This parameter is mandatory for the 'Expr' parameter set.
+
+.PARAMETER OutputType
+    Specifies the output type for the filter script. Valid values are 'ScriptBlock' (default) or 'String'.
+    Only applicable when using the 'Default' parameter set.
+
+.PARAMETER OutputFormat
+    Specifies the output format for the filter script. Valid values are 'PowerShell' (default), 'ActiveDirectory', or 'EntraId'.
+    Only applicable when using the 'Default' parameter set.
 
 .OUTPUTS
     [System.Collections.Hashtable]
-        - The key 'FilterScript' contains the filter script as a ScriptBlock.
+        - The key 'FilterScript' contains the filter script as a ScriptBlock (when OutputType is 'ScriptBlock').
+        - The key 'FilterString' contains the filter script as a String (when OutputType is 'String').
+
 
 .EXAMPLE
-    PS> $filter = [PSCustomObject]@{ and = @(@{ property = 'Name'; operator = 'eq'; value = 'John' }) }
-    PS> ConvertTo-FilterScript -Filter $filter
+    PS> $customFilterObject = [PSCustomObject]@{ and = @(@{ property = 'Name'; operator = 'eq'; value = 'John' }) }
+    PS> $customFilterObject = [PSCustomObject]@{ and = @(@{ property = 'Name'; operator = 'eq'; value = 'John' },@{ property = 'Enabled'; operator = 'eq'; value = $true }) }
+    PS> $customFilterObject = [PSCustomObject]@{ and = @(@{ property = 'Name'; operator = 'eq'; value = 'John' },@{ property = 'Enabled'; operator = 'eq'; value = $true }); or = @(@{ property = 'Department'; operator = 'eq'; value = 'IT' }) }
+    PS> $customFilterObject = [PSCustomObject]@{ and = @(@{ property = 'Name'; operator = 'eq'; value = 'John' },@{ property = 'Enabled'; operator = 'eq'; value = $true }); or = @(@{ property = 'Department'; operator = 'eq'; value = 'IT' }; @{ property = 'ExpireDate'; operator = 'eq'; value = (Get-Date) }; @{ property = 'ListOfFruites'; operator = 'in'; value = @('apple', 'banana') }) }
+    PS> $customFilterObject = [PSCustomObject]@{ or = @(@{ property = 'Name'; operator = 'eq'; value = 'John' },@{ property = 'Enabled'; operator = 'eq'; value = $true }) }
+
+
+    PS> $customFilter = ConvertTo-FilterScript -Expression "StartsWith('DisplayName', 'EntraId-GroupName-')" -OutputType ScriptBlock -OutputFormat EntraId -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType String -OutputFormat ActiveDirectory -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType ScriptBlock -OutputFormat ActiveDirectory -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType String -OutputFormat EntraId -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType ScriptBlock -OutputFormat EntraId -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType String -OutputFormat PowerShell -Verbose
+    PS> $customFilter = ConvertTo-FilterScript -Filter $customFilterObject -OutputType ScriptBlock -OutputFormat PowerShell -Verbose
+    PS> $AnyObjectList | Where-Object -FilterScript $customFilter['FilterScript']
 
 .NOTES
     Author: klee-it
@@ -31,75 +61,164 @@ function ConvertTo-FilterScript
     [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Expr')]
         [ValidateNotNullOrEmpty()]
-        [PSCustomObject] $Filter
+        [String] $Expression,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [ValidateNotNullOrEmpty()]
+        [PSCustomObject] $Filter,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateSet('ScriptBlock', 'String')]
+        [String] $OutputType = 'ScriptBlock',
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateSet('PowerShell', 'ActiveDirectory', 'EntraId')]
+        [String] $OutputFormat = 'PowerShell'
     )
-    
+
+    function Get-FilterArray
+    {
+        [OutputType([System.String])]
+        [CmdLetBinding(DefaultParameterSetName = 'Default')]
+
+        param(
+            [Parameter(Mandatory = $true)]
+            [ValidateNotNullOrEmpty()]
+            [PSCustomObject] $FilterSection,
+
+            [Parameter(Mandatory = $false)]
+            [ValidateSet('and', 'or')]
+            [String] $LogicalOperator = 'and',
+
+            [Parameter(Mandatory = $false)]
+            [ValidateSet('PowerShell', 'ActiveDirectory', 'EntraId')]
+            [String] $OutputFormat = 'PowerShell'
+        )
+
+        Write-Verbose -Message "Generate filter array for logical operator '$($LogicalOperator)'..."
+
+        $FilterArray = $null
+        if ($FilterSection)
+        {
+            switch ($OutputFormat)
+            {
+                'PowerShell' { $PropertyNamePrefix = '$_.'; $OperatorPrefix = '-' }
+                'ActiveDirectory' { $PropertyNamePrefix = ''; $OperatorPrefix = '-' }
+                'EntraId' { $PropertyNamePrefix = ''; $OperatorPrefix = '' }
+            }
+
+            $FilterArray = $FilterSection | ForEach-Object {
+
+                $PropertyName = if ($_.property -match '[\W_]') { "'$($_.property)'" } else { "$($_.property)" }
+
+                if ( ($_.value -is [Int32]) -or ($_.value -is [Int64]) )
+                {
+                    "$($PropertyNamePrefix)$PropertyName $($OperatorPrefix)$($_.operator) $($_.value)"
+                }
+                elseif ($_.value -is [bool])
+                {
+                    if ($OutputFormat -eq 'EntraId')
+                    {
+                        "$($PropertyNamePrefix)$PropertyName $($_.operator) $($_.value.ToString().ToLower())"
+                    }
+                    else
+                    {
+                        "$($PropertyNamePrefix)$PropertyName $($OperatorPrefix)$($_.operator) '$($_.value)'"
+                    }
+                }
+                elseif ( $_.value -is [Array] )
+                {
+                    "$($PropertyNamePrefix)$PropertyName $($OperatorPrefix)$($_.operator) @('$($_.value -join "','")')"
+                }
+                elseif ($_.value -is [DateTime])
+                {
+                    if ($PropertyNamePrefix -eq '$_.')
+                    {
+                        "([DateTime]$($PropertyNamePrefix)$PropertyName) $($OperatorPrefix)$($_.operator) ([DateTime]'$($_.value)')"
+                    }
+                    else
+                    {
+                        "$($PropertyNamePrefix)$PropertyName $($OperatorPrefix)$($_.operator) ([DateTime]'$($_.value)')"
+                    }
+                }
+                else
+                {
+                    "$($PropertyNamePrefix)$PropertyName $($OperatorPrefix)$($_.operator) '$($_.value)'"
+                }
+            }
+
+            $FilterArray = '{0}' -f ( $FilterArray -join " $($OperatorPrefix)$($LogicalOperator) " )
+        }
+
+        Write-Output -InputObject $FilterArray
+    }
+
     try
     {
-        # Generate filter script
-        Write-Verbose -Message 'Generate filter script...'
-        $FilterScript = @{}
-        
-        # filterscript: and
-        $FilterArray_AND = $null
-        if ($Filter.and)
+        # use custom expression if provided
+        if ($PSBoundParameters.ContainsKey('Expression'))
         {
-            $FilterArray_AND = $Filter.and | ForEach-Object {
-                if ( ($_.value -is [Int]) -or ($_.value -is [Int32]) -or ($_.value -is [Int64]) ) #-or ($_.value -is [Boolean]) -or ($_.value -is [bool]) )
-                {
-                    "`$_.$($_.property) -$($_.operator) $($_.value)"
-                }
-                else
-                {
-                    "`$_.$($_.property) -$($_.operator) '$($_.value)'"
-                }
+            Write-Verbose -Message "Use custom expression: '$($Expression)'"
+            Write-Output -InputObject (@{ FilterScript = [ScriptBlock]::Create( $Expression ) })
+        }
+
+        else
+        {
+            # Generate filter script
+            Write-Verbose -Message 'Generate filter script...'
+
+            # initialize output variable
+            $Output = ''
+
+            # filterscript: and
+            $FilterArray_AND = $null
+            if ($Filter.and)
+            {
+                $FilterArray_AND = Get-FilterArray -FilterSection $Filter.and -LogicalOperator 'and' -OutputFormat $OutputFormat
             }
 
-            $FilterArray_AND = '{0}' -f ( $FilterArray_AND -join ' -and ' )
-        }
-
-        # filterscript: or
-        $FilterArray_OR = $null
-        if ($Filter.or)
-        {
-            $FilterArray_OR = $Filter.or | ForEach-Object {
-                if ( ($_.value -is [Int]) -or ($_.value -is [Int32]) -or ($_.value -is [Int64]) ) #-or ($_.value -is [Boolean]) -or ($_.value -is [bool]) )
-                {
-                    "`$_.$($_.property) -$($_.operator) $($_.value)"
-                }
-                else
-                {
-                    "`$_.$($_.property) -$($_.operator) '$($_.value)'"
-                }
+            # filterscript: or
+            $FilterArray_OR = $null
+            if ($Filter.or)
+            {
+                $FilterArray_OR = Get-FilterArray -FilterSection $Filter.or -LogicalOperator 'or' -OutputFormat $OutputFormat
             }
 
-            $FilterArray_OR = '{0}' -f ( $FilterArray_OR -join ' -or ' )
-        }
+            # new 'FilterScript' query
+            if ( ($null -ne $FilterArray_AND) -and ($null -ne $FilterArray_OR) )
+            {
+                $topLevelAnd = if ($OutputFormat -eq 'EntraId') { 'and' } else { '-and' }
+                $Output = "($($FilterArray_AND)) $($topLevelAnd) ($($FilterArray_OR))"
+            }
+            elseif ( ($null -ne $FilterArray_AND) -and ($null -eq $FilterArray_OR) )
+            {
+                $Output = "$($FilterArray_AND)"
+            }
+            elseif ( ($null -eq $FilterArray_AND) -and ($null -ne $FilterArray_OR) )
+            {
+                $Output = "$($FilterArray_OR)"
+            }
 
-        # new 'FilterScript' query
-        if ( ($FilterArray_AND) -and ($FilterArray_OR) )
-        {
-            $FilterScript['FilterScript'] = [ScriptBlock]::Create( "($($FilterArray_AND)) -and ($($FilterArray_OR))" )
-        }
-        elseif ( ($FilterArray_AND) -and (-not $FilterArray_OR) )
-        {
-            $FilterScript['FilterScript'] = [ScriptBlock]::Create( "$($FilterArray_AND)" )
-        }
-        elseif ( (-not $FilterArray_AND) -and ($FilterArray_OR) )
-        {
-            $FilterScript['FilterScript'] = [ScriptBlock]::Create( "$($FilterArray_OR)" )
-        }
+            Write-Verbose -Message "FilterScript: $($Output)"
 
-        Write-Verbose -Message "FilterScript: $($FilterScript.Values)"
+            # check if the output filter is empty
+            if ([String]::IsNullOrEmpty($Output))
+            {
+                Write-Warning 'No filter conditions were provided; the output filter is empty.'
+            }
 
-        # clear variable
-        Get-Variable -Name 'FilterArray_AND' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-        Get-Variable -Name 'FilterArray_OR' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-
-        # return filter script
-        Write-Output -InputObject $FilterScript
+            # return filter script
+            if ($OutputType -eq 'String')
+            {
+                Write-Output -InputObject (@{ FilterString = "$($Output)" })
+            }
+            else
+            {
+                Write-Output -InputObject (@{ FilterScript = [ScriptBlock]::Create( $Output ) })
+            }
+        }
     }
     catch
     {

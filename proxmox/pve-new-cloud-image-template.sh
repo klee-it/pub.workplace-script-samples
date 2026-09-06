@@ -95,7 +95,7 @@ fi
 
     # Create a VM
     echo "# Create a VM..."
-    qm create $VM_TEMPLATE_ID --name $VM_TEMPLATE_NAME --ostype l26 --bios ovmf --boot "order=scsi0;ide2;net0" --hotplug network,disk,usb --scsihw virtio-scsi-pci --agent 1 --sockets 1 --cores 2 --memory 4096 --balloon 1024 --net0 virtio,bridge=vmbr0,firewall=1 --pool pool_linux
+    qm create $VM_TEMPLATE_ID --name $VM_TEMPLATE_NAME --ostype l26 --bios ovmf --boot "order=scsi0;ide2;net0" --hotplug network,disk,usb --scsihw virtio-scsi-pci --agent 1 --sockets 1 --cores 2 --memory 4096 --balloon 1024 --net0 virtio,bridge=vmbr0,firewall=1 --tags linux,ubuntu,template
     echo "|__ VM created successfully"
 
     # Import the disk in qcow2 format (as unused disk)

@@ -42,7 +42,7 @@ function Get-NormalizedVersion
         [Parameter(Mandatory = $false)]
         [String] $Value = ''
     )
-    
+
     try
     {
         Write-Verbose -Message "Original Version : '$($Value)'"
@@ -54,6 +54,35 @@ function Get-NormalizedVersion
         if ( [String]::IsNullOrEmpty($Value) )
         {
             Write-Verbose -Message 'Given value was empty. Returning empty string.'
+        }
+
+        # check if the value contains new version format with 'yyHq' (e.g. '26H1')
+        elseif ( $Value -match '^\d{2}H\d$' )
+        {
+            Write-Verbose -Message "Given value is in new version format 'yyHq'."
+
+            # convert 'yyHq' to 'yy.q' (e.g. '26H1' to '26.1')
+            $normalizedValue = "$($Value -replace 'H', '.')"
+            Write-Verbose -Message "Normalized value: '$($normalizedValue)'"
+
+            # check if normalized value is empty
+            if ( [String]::IsNullOrEmpty($normalizedValue) )
+            {
+                Write-Verbose -Message 'Normalized value was empty. Returning empty string.'
+            }
+            # check if normalized value is in format major.minor(.patch)(.build)
+            elseif ( $normalizedValue -notmatch '^\d+\.\d+(?:\.\d+)?(?:\.\d+)?$' )
+            {
+                Write-Verbose -Message 'Normalized value is not in format major.minor. Add missing minor part.'
+                $OutputString = "$($normalizedValue).0"
+            }
+            else
+            {
+                Write-Verbose -Message 'Normalized value is in format major.minor(.patch)(.build).'
+                $OutputString = "$($normalizedValue)"
+            }
+
+            Get-Variable -Name 'normalizedValue' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
 
         # check if the value contains letters
@@ -68,7 +97,7 @@ function Get-NormalizedVersion
             # $normalizedValue = "$($Value -replace '[\D]', '.')".TrimEnd('.0') # TrimEnd() replaces all specified characters, but not as "word"
             $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' -replace '\.0$', '' )"
             Write-Verbose -Message "Normalized value: '$($normalizedValue)'"
-    
+
             # check if normalized value is empty
             if ( [String]::IsNullOrEmpty($normalizedValue) )
             {

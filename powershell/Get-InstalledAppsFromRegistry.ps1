@@ -3,25 +3,35 @@
     Returns installed applications discovered in the Windows registry with optional filters or all entries.
 
 .DESCRIPTION
-    Enumerates common HKLM Uninstall registry locations (both native and 32-bit views) and outputs registry entry data
-    for installed applications. Supports wildcard matching on DisplayName and UninstallString, optional exclusion by
-    DisplayName, and a minimum VersionMajor numeric filter. Use -All to ignore filters and return all entries.
+    Enumerates common HKLM and/or HKCU Uninstall registry locations (both native and 32-bit views) and outputs registry entry data
+    for installed applications. Supports wildcard matching on DisplayName, optional exclusion by DisplayName, minimum VersionMajor 
+    numeric filter, and UninstallString pattern exclusion. Use -All to return all entries, -Filter for custom filtering, 
+    -IncludeCurrentUser to add HKCU entries, or -OnlyCurrentUser to query only HKCU.
     Emits verbose messages when -Verbose is specified.
 
+.PARAMETER IncludeCurrentUser
+    Switch to include HKCU registry path in addition to HKLM paths. Optional.
+
+.PARAMETER OnlyCurrentUser
+    Switch to query only HKCU registry path, excluding HKLM paths. Optional.
+
 .PARAMETER DisplayName
-    Display name pattern to include (wildcards supported). Mandatory in the 'Default' parameter set.
+    Display name pattern to include (wildcards supported). Mandatory in the 'SingleApp' parameter set.
 
 .PARAMETER DisplayNameExclusion
-    Display name pattern to exclude (wildcards supported). Optional.
+    Display name pattern to exclude (wildcards supported). Optional in the 'SingleApp' parameter set.
 
 .PARAMETER VersionMajor
-    Minimum major version (numeric) to include. Compared against the 'VersionMajor' registry value using -ge. Optional.
+    Minimum major version (numeric) to include. Compared against the 'VersionMajor' registry value using -ge. Optional in the 'SingleApp' parameter set.
 
 .PARAMETER UninstallString
-    Uninstall string pattern to exclude (wildcards supported). Optional.
+    Uninstall string pattern to exclude (wildcards supported). Optional in the 'SingleApp' parameter set.
 
 .PARAMETER All
     Switch to return all installed applications (parameter set 'All'). When used, other parameters are ignored.
+
+.PARAMETER Filter
+    Custom hashtable filter to apply using Where-Object. Mandatory in the 'ByFilter' parameter set.
 
 .INPUTS
     None. You cannot pipe input to this function.
@@ -46,12 +56,18 @@
 .EXAMPLE
     Get-InstalledAppsFromRegistry -All -Verbose
 
-.NOTES
-    Requires read access to HKLM. Works with Windows PowerShell 5.1 and PowerShell 7+.
-    Scans uninstall entries for both 64-bit and 32-bit applications.
+.EXAMPLE
+    Get-InstalledAppsFromRegistry -OnlyCurrentUser -DisplayName '*Adobe*'
 
-.LINK
-    about_Comment_Based_Help
+.EXAMPLE
+    Get-InstalledAppsFromRegistry -IncludeCurrentUser -All
+
+.EXAMPLE
+    Get-InstalledAppsFromRegistry -Filter @{DisplayName = 'Visual Studio Code'}
+
+.NOTES
+    Requires read access to HKLM and/or HKCU. Works with Windows PowerShell 5.1 and PowerShell 7+.
+    Scans uninstall entries for both 64-bit and 32-bit applications.
 #>
 
 ###
@@ -63,16 +79,22 @@ function Get-InstalledAppsFromRegistry
     [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(ParameterSetName = 'Default', Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
+        [Switch] $IncludeCurrentUser = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $OnlyCurrentUser = $false,
+
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $true)]
         [String] $DisplayName,
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $DisplayNameExclusion = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $VersionMajor = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $UninstallString = '',
 
         [Parameter(ParameterSetName = 'All', Mandatory = $true)]
@@ -86,14 +108,30 @@ function Get-InstalledAppsFromRegistry
     {
         # query all the registry keys where applications usually leave a mark for installed applications
         Write-Verbose -Message 'Collecting installed applications from registry...'
-        $RegistryUninstallPaths = @(
-            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-        )
+        if ($OnlyCurrentUser)
+        {
+            Write-Verbose -Message 'Set current user uninstall registry path...'
+            $RegistryUninstallPaths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
+        }
+        else
+        {
+            Write-Verbose -Message 'Set local machine uninstall registry paths...'
+            $RegistryUninstallPaths = @(
+                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            )
+        }
+
+        if ($IncludeCurrentUser)
+        {
+            Write-Verbose -Message 'Including current user uninstall registry path...'
+            $RegistryUninstallPaths += 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        }
+
 
         $ReadRegistry = @()
-        foreach ($RegistryUninstallPath in $RegistryUninstallPaths)
+        foreach ($RegistryUninstallPath in ($RegistryUninstallPaths | Sort-Object -Unique))
         {
             $ReadRegistry += Get-ItemProperty -Path "$($RegistryUninstallPath)" -ErrorAction 'SilentlyContinue' | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, VersionMajor, VersionMinor, PSChildName, UninstallString, InstallLocation, @{ Name = 'RegistryPath'; Expression = { $RegistryUninstallPath } }
         }

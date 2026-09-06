@@ -48,76 +48,72 @@ distroCodeName=$(echo $distroCodeName | tr '[:upper:]' '[:lower:]')
 
 echo "# Distro: ${distroName} ${distroVersion} (${distroCodeName})"
 
-# set list of apps
-app_list="curl
-wget
-zip
-unzip
-nano
-cifs-utils
-libplist-utils
-libnss3-tools
-gpg
-apt-transport-https
-libpam-pwquality
-ubuntu-restricted-addons
-rsyslog
-cron
-tar
-software-properties-common
-openssl
-git-all
-fail2ban
-"
-
 ###
 ### check if network connection exists
 ###
 { #try
-   /usr/bin/curl -I https://www.google.at > /dev/null
+   curl -I https://www.google.at > /dev/null
 } || { #catch
    echo "no internet connection"
    exit 0
 }
 
 ###
-### run system update
+### update the apt-get lists
 ###
-# check if apt-get is installed
 if which apt-get > /dev/null; then
     echo "# update the apt-get lists"
-    /usr/bin/apt-get update 
-    
-    echo "# fix broken dependencies"
-    /usr/bin/apt --fix-broken install
-    
-    echo "# run system upgrade with apt-get"
-    /usr/bin/apt-get -y upgrade && /usr/bin/apt-get -y dist-upgrade && /usr/bin/apt-get -y autoremove && /usr/bin/apt-get -y autoclean
+    apt-get update
 else
     echo "# apt-get is not installed"
-fi
-
-# check if snap is installed
-if which snap > /dev/null; then
-    echo "# start system upgrade with snap"
-    /usr/bin/snap refresh
-else
-    echo "# snap is not installed"
+    exit 0
 fi
 
 ###
 ### run app deployment
 ###
-if which apt-get > /dev/null; then
-    echo "# update the apt-get lists"
-    /usr/bin/apt-get update
+# set list of apps
+echo "# install defined apps"
+app_list="curl
+wget
+zip
+unzip
+tar
+nano
+vim
+cifs-utils
+libplist-utils
+libnss3-tools
+coreutils
+grep
+sed
+software-properties-common
+gpg
+apt-transport-https
+ubuntu-release-upgrader-core
+ubuntu-drivers-common
+dkms
+jq
+yq
+htop
+7zip
+ca-certificates
+rsync
+openssh-client
+openssh-server
+openssl
+ubuntu-restricted-addons
+libpam-pwquality
+rsyslog
+cron
+fail2ban
+git-all
+"
+apt-get -y install $(echo $app_list)
 
-    echo "# install defined apps"
-    /usr/bin/apt-get -y install $(echo $app_list)
-else
-    echo "# apt-get is not installed"
-fi
-
+###
+### run app configuration
+###
 # start rsyslog service with my config
 if [ -f "/usr/sbin/rsyslogd" ]; then
     echo 
@@ -137,55 +133,12 @@ if which cron > /dev/null; then
 fi
 
 # start fail2ban service with my config
-if [ -f "/usr/bin/fail2ban-server" ]; then
+if [ -f "fail2ban-server" ]; then
     echo 
     echo "# fail2ban successfully installed"
     echo -e "[DEFAULT]\nbantime  = 60m\nfindtime = 10m\nmaxretry = 3\n\n[sshd]\nenabled = true\nfilter  = sshd" > /etc/fail2ban/jail.d/jail.local
     systemctl enable fail2ban
     systemctl start fail2ban
-fi
-
-if which gpg > /dev/null; then
-    ###
-    ### add Microsoft GPG public key
-    ###
-    echo "# add Microsoft GPG public key"
-    MSgpgFileName='microsoft-prod.gpg'
-    MSgpgFilePath="/usr/share/keyrings"
-    MSgpgFullFileName="$MSgpgFilePath/$MSgpgFileName"
-
-    # download Microsoft GPG public key
-    /usr/bin/curl https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor > "./$MSgpgFileName"
-
-    # install Microsoft GPG public key
-    /usr/bin/install -o root -g root -m 644 "./$MSgpgFileName" "$MSgpgFilePath/"
-    /usr/bin/rm "./$MSgpgFileName"
-
-    ###
-    ### add Microsoft repositories
-    ###
-
-    ### Microsoft Prod
-    echo "# add Microsoft Prod repository"
-    MSrepositoryFileName='microsoft-prod.list'
-    MSrepositoryFullFileName="/etc/apt/sources.list.d/$MSrepositoryFileName"
-    MSrepositoryGpgFile=$(echo "$MSgpgFullFileName" | sed 's,\/,\\\/,g')
-
-    # download source list
-    /usr/bin/curl -o "$MSrepositoryFileName" https://packages.microsoft.com/config/$distroName/$distroVersion/prod.list
-
-    # if missed, add signed-by
-    /usr/bin/sed -i -E '/^deb \[.*signed-by=/!s/(^deb \[.*arch=.*)\]/\1 signed-by='"$MSrepositoryGpgFile"'\]/g' "./$MSrepositoryFileName"
-
-    # move to source.list.d
-    /usr/bin/mv "./$MSrepositoryFileName" "$MSrepositoryFullFileName"
-
-    ### Microsoft Edge
-    echo "# add Microsoft Edge repository"
-    MSEdgeRepositoryFile='/etc/apt/sources.list.d/microsoft-edge.list'
-
-    # download source list
-    /usr/bin/sh -c "echo 'deb [arch=amd64 signed-by=$MSgpgFullFileName] https://packages.microsoft.com/repos/edge stable main' > $MSEdgeRepositoryFile"
 fi
 
 echo "# system configuration finished"

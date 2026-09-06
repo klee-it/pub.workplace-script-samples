@@ -1,7 +1,7 @@
 #
 ## basic information:
 ## |__ This script will check and detect old log files
-# 
+#
 ## Supported PowerShell versions:
 ## |__ v5.1
 #
@@ -27,9 +27,34 @@ $script:LogOptionAppend = $false
 # set device parameters
 $script:LocalLogDirectories = @(
     [PSCustomObject]@{
-        Path            = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom"
-        FileExtension   = @('*.log')
-        RetentionPolicy = '1M'
+        Path                  = "$($Env:ProgramData)\Custom\Logs"
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom"
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\Temp\WinGet\defaultState'
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\Logs\Custom'
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\System32\config\systemprofile\AppData\Local\tw-*.tmp'
+        FileExtension         = @('*.noFileCheck')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $true
     }
 )
 
@@ -59,7 +84,7 @@ function Write-Logging
         [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
-    
+
     try
     {
         # set log file path
@@ -68,10 +93,10 @@ function Write-Logging
         {
             New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
-        
+
         $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
-        
+
         # set prefix
         switch ($Level)
         {
@@ -82,7 +107,7 @@ function Write-Logging
             # sub level
             default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
-        
+
         # set log message
         $logMessage = "$($prefix)$($Value)"
         $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
@@ -117,7 +142,7 @@ function Write-Logging
             {
                 $script:LogStream = [System.IO.StreamWriter]::new("$($File)", $script:LogOptionAppend, [Text.Encoding]::UTF8) # path, append, encoding
             }
-            
+
             # write log line
             if (-not ( [string]::IsNullOrEmpty($script:LogStream) ) )
             {
@@ -198,6 +223,22 @@ try
             if ( ($FilesToRemove | Measure-Object).Count -gt 0 )
             {
                 Write-Logging -Level 2 -Value 'Old log files found and should be removed'
+                $exit_code = 1
+            }
+
+            # check if empty folders should be removed
+            Write-Logging -Level 1 -Value 'Check if empty folders should be removed...'
+            $EmptyFolders = @()
+            if ($LocalDir.RemoveEmptyRootFolder)
+            {
+                $EmptyFolders += Get-Item -Path "$($LocalDir.Path)" | Where-Object { ($_.PSIsContainer) -and ($_.GetFileSystemInfos().Count -eq 0) }
+            }
+            $EmptyFolders += Get-ChildItem -Path "$($LocalDir.Path)" -Recurse | Where-Object { ($_.PSIsContainer) -and ($_.GetFileSystemInfos().Count -eq 0) }
+            Write-Logging -Level 2 -Value "Number of empty folders: $( ($EmptyFolders | Measure-Object).Count )"
+
+            if ( ($EmptyFolders | Measure-Object).Count -gt 0 )
+            {
+                Write-Logging -Level 2 -Value 'Empty folders found and should be removed'
                 $exit_code = 1
             }
         }

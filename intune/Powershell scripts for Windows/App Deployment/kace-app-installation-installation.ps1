@@ -13,12 +13,12 @@ $script:MyScriptInfo = Get-Item -Path "$($MyInvocation.MyCommand.Path)"
 
 # set logging parameters
 $script:enable_write_logging = $true
-$script:LogFilePath = "$($env:ProgramData)\klee-it\AppDeployment"
+$script:LogFilePath = "$($env:ProgramData)\klee-it\AppDeploymentByKace"
 $script:LogFileName = "$($script:MyScriptInfo.BaseName).log"
 
 # set configuration parameters
 $script:ConfigFilePath = "$($PSScriptRoot)"
-$script:ConfigFileName = "kace-app-installation-configuration.json"
+$script:ConfigFileName = "$($script:MyScriptInfo.BaseName).json"
 
 # set download parameters
 $script:DownloadPath = "$($PSScriptRoot)"
@@ -61,7 +61,7 @@ function Write-Logging
         [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
-    
+
     try
     {
         # set log file path
@@ -70,10 +70,10 @@ function Write-Logging
         {
             New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
-        
+
         $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
-        
+
         # set prefix
         switch ($Level)
         {
@@ -84,7 +84,7 @@ function Write-Logging
             # sub level
             default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
-        
+
         # set log message
         $logMessage = "$($prefix)$($Value)"
         $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
@@ -262,18 +262,18 @@ function Update-EnvVariables
                 foreach ($field in $InputObject.$($element).psobject.properties.name)
                 {
                     Write-Verbose -Message "Element: $($element) - Field: $($field)"
-                    
+
                     if ($InputObject.$($element).$($field) -like '*$($Env:*)*')
                     {
                         $SearchResult = Select-String -InputObject "$($InputObject.$($element).$($field))" -Pattern '\$\((.*?)\)' -AllMatches
-                        
+
                         foreach ($match in $SearchResult.Matches)
                         {
                             $MatchValue = "$($match.value)"
                             $MatchString = "$($match.groups[1])"
                             Write-Verbose -Message "MatchValue: $($MatchValue)"
                             Write-Verbose -Message "MatchString: $($MatchString)"
-                            
+
                             $EnvVariable = $MatchString.split(':')[1]
                             $EnvPath = (Get-Item -Path Env:\$EnvVariable).Value
                             $InputObject.$($element).$($field) = ($InputObject.$($element).$($field)).replace($MatchValue, $EnvPath)
@@ -310,7 +310,7 @@ function Get-NormalizedVersion
         [Parameter(Mandatory = $false)]
         [String] $Value = ''
     )
-    
+
     try
     {
         Write-Verbose -Message "Original Version : '$($Value)'"
@@ -336,7 +336,7 @@ function Get-NormalizedVersion
             # $normalizedValue = "$($Value -replace '[\D]', '.')".TrimEnd('.0') # TrimEnd() replaces all specified characters, but not as "word"
             $normalizedValue = "$( "$($Value -replace '[\D]', '.')" -replace '\.0$', '' -replace '\.0$', '' )"
             Write-Verbose -Message "Normalized value: '$($normalizedValue)'"
-    
+
             # check if normalized value is empty
             if ( [String]::IsNullOrEmpty($normalizedValue) )
             {
@@ -374,16 +374,22 @@ function Get-InstalledAppsFromRegistry
     [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(ParameterSetName = 'Default', Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
+        [Switch] $IncludeCurrentUser = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $OnlyCurrentUser = $false,
+
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $true)]
         [String] $DisplayName,
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $DisplayNameExclusion = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $VersionMajor = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $UninstallString = '',
 
         [Parameter(ParameterSetName = 'All', Mandatory = $true)]
@@ -392,19 +398,35 @@ function Get-InstalledAppsFromRegistry
         [Parameter(ParameterSetName = 'ByFilter', Mandatory = $true)]
         [System.Collections.Hashtable] $Filter = @{}
     )
-    
+
     try
     {
         # query all the registry keys where applications usually leave a mark for installed applications
         Write-Verbose -Message 'Collecting installed applications from registry...'
-        $RegistryUninstallPaths = @(
-            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-        )
+        if ($OnlyCurrentUser)
+        {
+            Write-Verbose -Message 'Set current user uninstall registry path...'
+            $RegistryUninstallPaths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
+        }
+        else
+        {
+            Write-Verbose -Message 'Set local machine uninstall registry paths...'
+            $RegistryUninstallPaths = @(
+                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            )
+        }
+
+        if ($IncludeCurrentUser)
+        {
+            Write-Verbose -Message 'Including current user uninstall registry path...'
+            $RegistryUninstallPaths += 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        }
+
 
         $ReadRegistry = @()
-        foreach ($RegistryUninstallPath in $RegistryUninstallPaths)
+        foreach ($RegistryUninstallPath in ($RegistryUninstallPaths | Sort-Object -Unique))
         {
             $ReadRegistry += Get-ItemProperty -Path "$($RegistryUninstallPath)" -ErrorAction 'SilentlyContinue' | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, VersionMajor, VersionMinor, PSChildName, UninstallString, InstallLocation, @{ Name = 'RegistryPath'; Expression = { $RegistryUninstallPath } }
         }
@@ -429,7 +451,7 @@ function Get-InstalledAppsFromRegistry
             if (-not ( [string]::IsNullOrWhiteSpace($VersionMajor) ) )
             {
                 Write-Verbose -Message "Minimum major version variable specified: $($VersionMajor)"
-    
+
                 $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.VersionMajor -ge $VersionMajor')
             }
 
@@ -445,7 +467,7 @@ function Get-InstalledAppsFromRegistry
             if (-not ( [string]::IsNullOrWhiteSpace($UninstallString) ) )
             {
                 Write-Verbose -Message "UninstallString exclusion variable specified: $($UninstallString)"
-    
+
                 $FilterScript = [ScriptBlock]::Create($FilterScript.ToString() + ' -and $_.UninstallString -notlike "$($UninstallString)"')
             }
 
@@ -491,14 +513,14 @@ function Get-ApplicationStatus
         if ($InputObject.setup_parameter.check_other_installation -eq 'yes')
         {
             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Check if other installation exists"
-            
+
             # check other installation by ...
             switch -Wildcard ($InputObject.setup_parameter.check_other_installation_by)
             {
                 'file*'
                 {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: file*"
-                    
+
                     # check if application is already installed
                     foreach ($install_path in $InputObject.application.install_path)
                     {
@@ -513,7 +535,7 @@ function Get-ApplicationStatus
                                 $CurrentItem = Get-Item -Path "$($install_path)\$($InputObject.application.exec_name)"
                                 [Version]$CurrentItem_version = Get-NormalizedVersion -Value "$($CurrentItem.VersionInfo.FileVersion)"
                                 [Version]$NewItem_version = Get-NormalizedVersion -Value "$($InputObject.application.version)"
-                                
+
                                 Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Current application version: '$($CurrentItem_version)' ($($CurrentItem.VersionInfo.FileVersion))"
                                 Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] New application version: '$($NewItem_version)' ($($InputObject.application.version))"
 
@@ -540,7 +562,7 @@ function Get-ApplicationStatus
                 'folder'
                 {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: folder"
-                    
+
                     # check if application is already installed
                     foreach ($install_path in $InputObject.application.install_path)
                     {
@@ -556,17 +578,28 @@ function Get-ApplicationStatus
                 'registry'
                 {
                     Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] check other installation by: registry"
-                    
+
                     # check if application is already installed
                     [Version]$LatestVersion = Get-NormalizedVersion -Value "$($InputObject.application.version)"
-                    $MinVersion = $LatestVersion.Major
 
                     # check if application is already installed
                     $Splat = @{
-                        DisplayName  = "$($InputObject.application.registry_name)"
-                        VersionMajor = "$($MinVersion)"
+                        DisplayName = "$($InputObject.application.registry_name)"
                     }
-                    
+
+                    if ($InputObject.application.registry_version_major -eq '-1')
+                    {
+                        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Search application without major version filter"
+                    }
+                    elseif ($InputObject.application.registry_version_major)
+                    {
+                        $Splat.VersionMajor = "$($InputObject.application.registry_version_major)"
+                    }
+                    else
+                    {
+                        $Splat.VersionMajor = "$($LatestVersion.Major)"
+                    }
+
                     if ($InputObject.application.registry_exclusion_name)
                     {
                         $Splat.DisplayNameExclusion = "$($InputObject.application.registry_exclusion_name)"
@@ -576,6 +609,7 @@ function Get-ApplicationStatus
                     {
                         $Splat.UninstallString = "$($InputObject.application.registry_exclusion_uninstall_string)"
                     }
+                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Splat: $( $Splat | ConvertTo-Json -Compress )" -StdOut 'None'
 
                     $LocalAppInfo = Get-InstalledAppsFromRegistry @Splat
                     Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
@@ -583,7 +617,7 @@ function Get-ApplicationStatus
 
                     # if application is installed check version
                     if ( ($LocalAppInfo | Measure-Object).Count -le 0 )
-                    { 
+                    {
                         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Specified application: $($InputObject.application.registry_name) is either invalid or application is not installed"
                         $OtherInstallationExists = $false
                     }
@@ -608,7 +642,7 @@ function Get-ApplicationStatus
                             $OtherInstallationExists = $true
                         }
                         else
-                        { 
+                        {
                             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Actual version: $($ActualVersion), Compared version: $($LatestVersion)"
                             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Update for $($LocalAppInfo.DisplayName) required, updating to version $($LatestVersion)"
                             $OtherInstallationExists = $false
@@ -617,17 +651,16 @@ function Get-ApplicationStatus
                         Remove-Variable -Name 'ActualVersion'
                     }
                     else
-                    { 
+                    {
                         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Too many applications found: $($LocalAppInfo.DisplayName -join ' / ')"
                         $OtherInstallationExists = $true
                     }
-                    
+
                     # clean-up
                     Get-Variable -Name 'LocalAppInfo' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Get-Variable -Name 'FilterScript' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Get-Variable -Name 'ReadRegistry' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Get-Variable -Name 'RegistryUninstallPaths' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
-                    Get-Variable -Name 'MinVersion' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Get-Variable -Name 'LatestVersion' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     break
                 }
@@ -648,7 +681,7 @@ function Get-ApplicationStatus
         else
         {
             Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($InputObject.application.display_name)] Application replacement allowed, continue with setup"
-            
+
             # check if file download is enabled
             if ($InputObject.file_download.enabled -eq 'yes')
             {
@@ -744,7 +777,7 @@ function Invoke-FileDownload
         # download a file through HTTP(S)
         $WebResult = Invoke-WebRequest @WebRequestSplat
         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Web result: $( $WebResult | ConvertTo-Json -Compress -Depth 2 )"
-        
+
         Get-Variable -Name 'WebResult' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         Get-Variable -Name 'WebRequestSplat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
@@ -775,7 +808,7 @@ function Install-Application
         [ValidateSet('pre_setup', 'main_setup', 'post_setup')]
         [String] $Scope
     )
-        
+
     try
     {
         # set parameters
@@ -790,7 +823,7 @@ function Install-Application
             FilePath     = ''
             ArgumentList = @()
         }
-        
+
         if ($SetupParameters)
         {
             $SetupParameters.PsObject.Properties | ForEach-Object { $StartProcessSplat[$_.Name] = $_.Value }
@@ -823,6 +856,19 @@ function Install-Application
                 $StartProcessSplat['FilePath'] = 'msiexec.exe'
                 $StartProcessSplat['ArgumentList'] += "/i `"$($SetupFile)`""
                 $StartProcessSplat['ArgumentList'] += $SetupArguments
+                $StartProcessSplat['ArgumentList'] += "/L*v `"$($script:LogFilePath)\$($script:MyScriptInfo.BaseName)-msi-install.log`""
+                break
+            }
+            'msix'
+            {
+                $StartProcessSplat['FilePath'] = "$($SetupFile)"
+                $StartProcessSplat['ArgumentList'] += $SetupArguments
+                break
+            }
+            'msixbundle'
+            {
+                $StartProcessSplat['FilePath'] = "$($SetupFile)"
+                $StartProcessSplat['ArgumentList'] += $SetupArguments
                 break
             }
             'ps1'
@@ -849,7 +895,16 @@ function Install-Application
 
         # start installation of setup file
         Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Splat: $($StartProcessSplat | ConvertTo-Json -Depth 3 -Compress)"
-        Start-Process @StartProcessSplat
+        if ( $SetupFile_Ext -in ('msix', 'msixbundle') )
+        {
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[$($script:AppName)] Install MSIX / MSIXBUDNLE'
+            Add-AppxPackage -Path "$($StartProcessSplat['FilePath'])"
+        }
+        else
+        {
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[$($script:AppName)] Install EXE/MSI'
+            Start-Process @StartProcessSplat
+        }
 
         # check if script should sleep after installation
         if ($SetupSleep -eq 'yes')
@@ -922,7 +977,7 @@ try
         {
             Write-Logging -Value "[$($script:AppName)] Start with File-Download"
             $DownloadResult = Invoke-FileDownload -Path "$($script:DownloadPath)" -FileName "$($AppConfigObject.file_download.filename)" -Url "$($AppConfigObject.file_download.url)"
-            
+
             if ($DownloadResult)
             {
                 Write-Logging -Value "[$($script:AppName)] Downloaded file: $($DownloadResult.FullName)"
@@ -935,37 +990,48 @@ try
             Get-Variable -Name 'DownloadResult' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
     }
-    
+
     # run pre-setup
-    if ($script:RunStatus.pre_setup)
+    if ( ($script:RunStatus.pre_setup -eq $true) -and ($AppConfigObject.pre_setup.enabled -eq 'yes') )
     {
-        # check pre-setup is enabled ...
-        if ($AppConfigObject.pre_setup.enabled -eq 'yes')
-        {
-            Write-Logging -Value "[$($script:AppName)] Start with Pre-Setup"
-            Install-Application -InputObject $AppConfigObject.pre_setup -Scope 'pre_setup'
+        Write-Logging -Value "[$($script:AppName)] Start with Pre-Setup"
+        $Splat = @{
+            InputObject = $AppConfigObject.pre_setup
+            Scope       = 'pre_setup'
         }
-        else
-        {
-            $script:RunStatus.main_setup = $true
-        }
+        Install-Application @Splat
+        Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+    }
+    else
+    {
+        $script:RunStatus.main_setup = $true
     }
 
     # run main-setup
     if ($script:RunStatus.main_setup)
     {
         Write-Logging -Value "[$($script:AppName)] Start with Main-Setup"
-        Install-Application -InputObject $AppConfigObject.main_setup -Scope 'main_setup'
+        $Splat = @{
+            InputObject = $AppConfigObject.main_setup
+            Scope       = 'main_setup'
+        }
+        Install-Application @Splat
+        Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
-    
+
     # run post-setup
-    if ($script:RunStatus.post_setup)
+    if ( ($script:RunStatus.post_setup -eq $true) -and ($AppConfigObject.post_setup.enabled -eq 'yes') )
     {
         # check post-setup is enabled ...
         if ($AppConfigObject.post_setup.enabled -eq 'yes')
         {
             Write-Logging -Value "[$($script:AppName)] Start with Post-Setup"
-            Install-Application -InputObject $AppConfigObject.post_setup -Scope 'post_setup'
+            $Splat = @{
+                InputObject = $AppConfigObject.post_setup
+                Scope       = 'post_setup'
+            }
+            Install-Application @Splat
+            Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
         }
     }
 

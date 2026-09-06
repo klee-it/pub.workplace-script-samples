@@ -1,65 +1,51 @@
 <#
 .SYNOPSIS
-    Deploys and manages WinGet applications for installation, removal, update checks, and upgrades.
+    Invokes WSL commands to query and manage Windows Subsystem for Linux distributions.
 
 .DESCRIPTION
-    This function provides a unified interface for managing WinGet applications. It automatically locates the WinGet executable, checks for the presence of AppInstaller, and supports installing, removing, listing, checking for available updates, and upgrading apps. Progress reporting can be disabled by updating user settings.
+    This function provides a unified interface for managing WSL commands. It supports querying WSL version, checking WSL status, listing available distributions, performing updates, and passing additional arguments to WSL commands. It includes output parsing capabilities for key-value pairs and lists.
 
-.PARAMETER Scope
-    Specifies the scope for WinGet operations. Valid values are 'user' or 'machine'. Default is 'user'.
+.PARAMETER Version
+    Displays the WSL version information.
 
-.PARAMETER Install
-    Installs the app specified by the Id in AdditionalArguments.
+.PARAMETER Status
+    Displays the current WSL status.
 
-.PARAMETER Removal
-    Removes the app specified by the Id in AdditionalArguments.
+.PARAMETER ListDistros
+    Lists all available WSL distributions.
 
 .PARAMETER Update
-    Upgrades all available WinGet apps.
-
-.PARAMETER CheckAvailableUpdates
-    Checks for available updates without performing upgrades.
-
-.PARAMETER ListInstalled
-    Lists installed WinGet apps.
-
-.PARAMETER DisableProgress
-    Disables progress reporting in WinGet by updating user settings.
+    Performs WSL update operations.
 
 .PARAMETER AdditionalArguments
-    Additional arguments to pass to the WinGet command (e.g., '--id <AppId>').
+    Additional arguments to pass to the WSL command.
 
 .OUTPUTS
     [PSCustomObject] with properties:
-        Scope            [string] - The scope used for the operation.
-        Command          [string] - The WinGet command executed.
-        UpdatesAvailable [bool]   - Indicates if updates are available.
-        ConsoleOutput    [object] - Output from WinGet command.
+        Content    [array]  - Parsed content from WSL command output.
+        RawContent [string] - Raw output from WSL command.
 
 .EXAMPLE
-    PS> Deploy-WingetApps -Update
-    Upgrades all available WinGet apps for the current user.
+    PS> Invoke-WslCommands -Version
+    Displays WSL version information.
 
-    PS> Deploy-WingetApps -Scope machine -CheckAvailableUpdates
-    Checks for available updates for machine scope.
+    PS> Invoke-WslCommands -ListDistros
+    Lists all available WSL distributions.
 
-    PS> Deploy-WingetApps -Install -AdditionalArguments @('--id Microsoft.PowerToys')
-    Installs Microsoft PowerToys for the current user.
+    PS> Invoke-WslCommands -Status
+    Displays the current WSL status.
 
-    PS> Deploy-WingetApps -Removal -AdditionalArguments @('--id Microsoft.PowerToys')
-    Removes Microsoft PowerToys for the current user.
-
-    PS> Deploy-WingetApps -ListInstalled
-    Lists all installed WinGet apps for the current user.
+    PS> Invoke-WslCommands -Update
+    Performs WSL update operations.
 
 .NOTES
     Author: klee-it
     PowerShell Version: 5.1, 7.x
-    Dependencies: WinGet, AppInstaller
+    Dependencies: WSL (Windows Subsystem for Linux)
 #>
 
 ###
-### FUNCTION: Manage WinGet apps for installation, removal or available updates and optionally upgrades them
+### FUNCTION: Invoke WSL commands to query and manage distributions
 ###
 function Invoke-WslCommands
 {
@@ -114,7 +100,7 @@ function Invoke-WslCommands
             }
 
             # split the input string into an array of lines
-            $InputObject = $InputString.Clone().Trim().Split("`n")
+            $InputObject = $InputString.Clone().Trim().Split( [System.Environment]::NewLine )
             Write-Verbose -Message "Input Object Length: $($InputObject.Length)"
 
             # define how the input should be parsed
@@ -151,7 +137,7 @@ function Invoke-WslCommands
             {
                 Write-Verbose -Message 'Raw output will be returned'
             }
-            
+
             Write-Output -InputObject $outputInfo
 
             # clean-up
@@ -232,9 +218,9 @@ function Invoke-WslCommands
             $ProcessStartInfo.RedirectStandardOutput = $true
 
             $Process = [Diagnostics.Process]::Start($ProcessStartInfo)
-            
+
             $ProcessResult = $Process.StandardOutput.ReadToEnd()
-            
+
             $Process.WaitForExit()
 
             Write-Verbose -Message "Output:$([Environment]::NewLine)$($ProcessResult)"

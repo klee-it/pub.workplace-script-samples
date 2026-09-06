@@ -1,5 +1,5 @@
 {
-    "_version": "2025-01-09",
+    "_version": "2025-10-22",
     "application": {
         "display_name": "",
         "version": "",
@@ -7,7 +7,8 @@
         "exec_name": "",
         "registry_name": "",
         "registry_exclusion_name": "",
-        "registry_exclusion_uninstall_string": ""
+        "registry_exclusion_uninstall_string": "",
+        "registry_version_major": ""
     },
     "main_setup": {
         "file": "",

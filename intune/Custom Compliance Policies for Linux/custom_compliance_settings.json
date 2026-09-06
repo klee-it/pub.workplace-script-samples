@@ -10,7 +10,7 @@
                 {
                     "Language": "en_US",
                     "Title": "APT not installed",
-                    "Description": "Your computer doesn't have installed APT.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                    "Description": "Your computer does not have installed APT.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
                 }
             ]
         },
@@ -37,8 +37,8 @@
             "RemediationStrings": [
                 {
                     "Language": "en_US",
-                    "Title": "Computer name doesn't meet the naming convention",
-                    "Description": "Your computer name doesn't meet the naming convention and needs to be changed.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                    "Title": "Computer name does not meet the naming convention",
+                    "Description": "Your computer name does not meet the naming convention and needs to be changed.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
                 }
             ]
         },
@@ -52,7 +52,7 @@
                 {
                     "Language": "en_US",
                     "Title": "MDATP not installed",
-                    "Description": "Your computer doesn't have installed Microsoft Defender.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                    "Description": "Your computer does not have installed Microsoft Defender.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
                 }
             ]
         },
@@ -66,7 +66,7 @@
                 {
                     "Language": "en_US",
                     "Title": "MDATP not licensed",
-                    "Description": "Your computer doesn't have a licensed Microsoft Defender installation.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                    "Description": "Your computer does not have a licensed Microsoft Defender installation.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
                 }
             ]
         },
@@ -81,6 +81,34 @@
                     "Language": "en_US",
                     "Title": "MDATP version too old",
                     "Description": "Your computer has installed a old Microsoft Defender version.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "Zscaler_installed",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "Zscaler not installed",
+                    "Description": "Zscaler is required but was not detected on your device.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
+                }
+            ]
+        },
+        {
+            "SettingName": "Zscaler_service_status",
+            "Operator": "IsEquals",
+            "DataType": "String",
+            "Operand": "True",
+            "MoreInfoUrl": "https://knowledgebase",
+            "RemediationStrings": [
+                {
+                    "Language": "en_US",
+                    "Title": "Zscaler service not running",
+                    "Description": "The Zscaler service is not running.\nPlease refer to the link 'How to resolve this'.\nValue discovered was: '{ActualValue}'"
                 }
             ]
         }

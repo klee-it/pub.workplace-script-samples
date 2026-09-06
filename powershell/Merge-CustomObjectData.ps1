@@ -53,8 +53,8 @@ function Merge-CustomObjectData
         [Parameter(Mandatory = $false)]
         [Switch] $OnlyEmptyObjects = $false
     )
-    
-    try 
+
+    try
     {
         # set default and custom object to full object
         $DefaultObject = $DefaultObject.PSObject.Copy()
@@ -77,18 +77,27 @@ function Merge-CustomObjectData
             {
                 # get field type
                 $fieldType = "$($DefaultObject."$($fieldName)".GetType().Name)"
+                Write-Verbose "Field '$($fieldName)' has type: $fieldType"
 
                 # if field exists and is a object, check subfields
                 switch ($fieldType)
                 {
                     'PSCustomObject'
-                    { 
+                    {
                         $DataSplat = @{
                             DefaultObject    = $DefaultObject."$($fieldName)"
                             CustomObject     = $CustomObject."$($fieldName)"
                             OverwriteArrays  = $OverwriteArrays
                             OnlyEmptyObjects = $OnlyEmptyObjects
                         }
+
+                        # if custom object is empty, set it to empty string to avoid errors in recursive function call
+                        if ([String]::IsNullOrEmpty($DataSplat.CustomObject))
+                        {
+                            $DataSplat.CustomObject = ''
+                        }
+
+                        # merge subfields with recursive function call
                         $CustomObject."$($fieldName)" = Merge-CustomObjectData @DataSplat
                         break
                     }
@@ -143,7 +152,7 @@ function Merge-CustomObjectData
 
         Write-Output -InputObject $CustomObject.PSObject.Copy()
     }
-    catch 
+    catch
     {
         Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }

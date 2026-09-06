@@ -1,7 +1,7 @@
 #
 ## basic information:
 ## |__ This script will remove old log files
-# 
+#
 ## Supported PowerShell versions:
 ## |__ v5.1
 #
@@ -27,9 +27,34 @@ $script:LogOptionAppend = $false
 # set device parameters
 $script:LocalLogDirectories = @(
     [PSCustomObject]@{
-        Path            = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom"
-        FileExtension   = @('*.log')
-        RetentionPolicy = '1M'
+        Path                  = "$($Env:ProgramData)\Custom\Logs"
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = "$($Env:ProgramData)\Microsoft\IntuneManagementExtension\Logs\Custom"
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\Temp\WinGet\defaultState'
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\Logs\Custom'
+        FileExtension         = @('*.log')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $false
+    },
+    [PSCustomObject]@{
+        Path                  = 'C:\Windows\System32\config\systemprofile\AppData\Local\tw-*.tmp' # https://www.deskmodder.de/blog/2026/07/09/windows-11-10-leere-tw-ordner-werden-immer-noch-angelegt-beim-login/
+        FileExtension         = @('*.noFileCheck')
+        RetentionPolicy       = '1M'
+        RemoveEmptyRootFolder = $true
     }
 )
 
@@ -59,7 +84,7 @@ function Write-Logging
         [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
-    
+
     try
     {
         # set log file path
@@ -68,10 +93,10 @@ function Write-Logging
         {
             New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
-        
+
         $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
-        
+
         # set prefix
         switch ($Level)
         {
@@ -82,7 +107,7 @@ function Write-Logging
             # sub level
             default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
-        
+
         # set log message
         $logMessage = "$($prefix)$($Value)"
         $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
@@ -117,7 +142,7 @@ function Write-Logging
             {
                 $script:LogStream = [System.IO.StreamWriter]::new("$($File)", $script:LogOptionAppend, [Text.Encoding]::UTF8) # path, append, encoding
             }
-            
+
             # write log line
             if (-not ( [string]::IsNullOrEmpty($script:LogStream) ) )
             {
@@ -203,7 +228,7 @@ try
                     try
                     {
                         Write-Logging -Level 2 -Value "Remove File: $( $item.FullName )"
-    
+
                         if (Test-Path -Path "$($item.FullName)" -PathType 'Leaf')
                         {
                             Remove-Item -Path "$($item.FullName)" -Force
@@ -224,7 +249,12 @@ try
 
             # check if empty folders (no files, no subfolders) exists and remove them
             Write-Logging -Level 1 -Value 'Check for empty folders...'
-            $EmptyFolders = Get-ChildItem -Path "$($LocalDir.Path)" -Recurse | Where-Object { ($_.PSIsContainer) -and ($_.GetFileSystemInfos().Count -eq 0) }
+            $EmptyFolders = @()
+            if ($LocalDir.RemoveEmptyRootFolder)
+            {
+                $EmptyFolders += Get-Item -Path "$($LocalDir.Path)" | Where-Object { ($_.PSIsContainer) -and ($_.GetFileSystemInfos().Count -eq 0) }
+            }
+            $EmptyFolders += Get-ChildItem -Path "$($LocalDir.Path)" -Recurse | Where-Object { ($_.PSIsContainer) -and ($_.GetFileSystemInfos().Count -eq 0) }
             Write-Logging -Level 2 -Value "Number of empty folders: $( ($EmptyFolders | Measure-Object).Count )"
 
             if ( ($EmptyFolders | Measure-Object).Count -gt 0 )
@@ -236,7 +266,7 @@ try
                     try
                     {
                         Write-Logging -Level 2 -Value "Remove Folder: $( $item.FullName )"
-    
+
                         if (Test-Path -Path "$($item.FullName)" -PathType 'Container')
                         {
                             Remove-Item -Path "$($item.FullName)" -Force -Confirm:$false

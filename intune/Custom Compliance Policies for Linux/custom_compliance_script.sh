@@ -69,7 +69,7 @@ fi
 
 # If MDATP is installed, the script then checks to see what its version is and if MDATP is properly onboarded.
 if [ "$StatusMdatpInstalled" = "True" ]; then
-    # This sets the licensed variable equal to MDATP license status. 
+    # This sets the licensed variable equal to MDATP license status.
     # If the device is properly onboarded, LICENSED=true
     IsLicensed="$(/usr/bin/mdatp health --field licensed)"
     if [ "$IsLicensed" = "true" ]; then

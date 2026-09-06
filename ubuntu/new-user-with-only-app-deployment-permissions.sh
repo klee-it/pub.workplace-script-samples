@@ -14,7 +14,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Start of a bash "try-catch loop" that will safely exit the script if a command fails or causes an error. 
+# Start of a bash "try-catch loop" that will safely exit the script if a command fails or causes an error.
 {
     # set script to "exit on first error"
     set -e
@@ -27,7 +27,7 @@ fi
     #NEW_USER="newUser"
 
     # create new user by useradd
-    echo 
+    echo
     echo "# create new user: $NEW_USER"
     useradd -m -s $(which bash) "$NEW_USER"
 
@@ -39,9 +39,9 @@ fi
     echo "|__ new user created successfully"
 
     # set default pw
-    echo 
+    echo
     echo "# set default password"
-    echo "$NEW_USER:$NEW_USER" | chpasswd 
+    echo "$NEW_USER:$NEW_USER" | chpasswd
     echo "|__ default password successfully set"
 
     ###
@@ -53,7 +53,7 @@ fi
     SUDOERS_PERMISSIONS="ALL=(ALL) NOPASSWD: /usr/sbin/reboot, /usr/bin/dpkg, /usr/bin/apt, /usr/bin/apt-get, /usr/bin/apt-key, /usr/bin/snap, /usr/lib/snapd/snapd, /usr/bin/update-manager, /usr/bin/software-center"
 
     # create sudoers file
-    echo 
+    echo
     echo "# create sudoers file and set permissions"
     echo "$NEW_USER $SUDOERS_PERMISSIONS" > "$SUDOERS_DIR/$NEW_USER"
     chmod 440 "$SUDOERS_DIR/$NEW_USER"
@@ -73,7 +73,7 @@ fi
 
     # create policykit file
     # |__ find rules in /usr/share/polkit-1/actions/
-    echo 
+    echo
     echo "# create PolicyKit file"
     echo "
 [Untrusted Install]
@@ -110,14 +110,14 @@ ResultActive=yes
     echo "# remove deployment user from login screen"
     echo "Available users: $(ls -la $FILE_LIGHTDM)"
     echo
-    echo "Update following setting to remove the deployment user from the login screen:"
+    echo "Run the following command to remove the deployment user from the login screen:"
     echo "File: $FILE_LIGHTDM/<username>"
     echo "Content:"
     echo -e "[User]\nSystemAccount=true"
     echo
     echo "---"
 
-} || { # catch any necessary errors to prevent the program from improperly exiting. 
+} || { # catch any necessary errors to prevent the program from improperly exiting.
     ExitCode=$?
 
     if [ $ExitCode -ne 0 ]; then
@@ -126,4 +126,4 @@ ResultActive=yes
     fi
 }
 
-# The script has finished checking host name. 
+# The script has finished checking host name.

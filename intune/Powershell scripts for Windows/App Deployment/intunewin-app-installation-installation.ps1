@@ -62,7 +62,7 @@ function Write-Logging
         [Parameter(Mandatory = $false)]
         [HashTable] $OptionsSplat = @{}
     )
-    
+
     try
     {
         # set log file path
@@ -71,10 +71,10 @@ function Write-Logging
         {
             New-Item -Path "$($FilePath)" -ItemType 'Directory' -Force | Out-Null
         }
-        
+
         $File = Join-Path -Path "$($FilePath)" -ChildPath "$($script:LogFileName)"
         $prefix = ''
-        
+
         # set prefix
         switch ($Level)
         {
@@ -85,7 +85,7 @@ function Write-Logging
             # sub level
             default { $prefix = "$((1..$($Level) | ForEach-Object { '|__' }) -join '') " }
         }
-        
+
         # set log message
         $logMessage = "$($prefix)$($Value)"
         $logDetails = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$($env:computername)] [$($env:UserName)] [$($env:UserDomain)] [$($Module)]"
@@ -193,6 +193,7 @@ function Get-LocalSystemDetails
             }
         }
 
+        # return system details
         Write-Output -InputObject $SystemDetails
     }
     catch
@@ -218,7 +219,7 @@ function Install-Application
         [ValidateSet('pre_setup', 'main_setup', 'post_setup')]
         [String] $Scope
     )
-        
+
     try
     {
         # set parameters
@@ -234,8 +235,9 @@ function Install-Application
             ArgumentList = @()
             Wait         = $true
             NoNewWindow  = $true
+            RedirectStandardError = "$($script:LogFilePath)\$($script:MyScriptInfo.BaseName)-$($Scope)-error.log"
         }
-        
+
         if ($SetupParameters)
         {
             $SetupParameters.PsObject.Properties | ForEach-Object { $StartProcessSplat[$_.Name] = $_.Value }
@@ -258,7 +260,7 @@ function Install-Application
             }
         }
 
-        Write-Logging -Value "[SR] [$($SetupFile_Ext)] [$Scope] Installation will be started: $($SetupFile)"
+        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[SR] [$($SetupFile_Ext)] [$Scope] Installation will be started: $($SetupFile)"
 
         # check setup file extension and set file path and arguments
         switch ( $SetupFile_Ext )
@@ -267,6 +269,13 @@ function Install-Application
             {
                 $StartProcessSplat['FilePath'] = 'msiexec.exe'
                 $StartProcessSplat['ArgumentList'] += "/i `"$($SetupFile)`""
+                $StartProcessSplat['ArgumentList'] += $SetupArguments
+                $StartProcessSplat['ArgumentList'] += "/L*v `"$($script:LogFilePath)\$($script:MyScriptInfo.BaseName)-msi-install.log`""
+                break
+            }
+            'msix'
+            {
+                $StartProcessSplat['FilePath'] = "$($SetupFile)"
                 $StartProcessSplat['ArgumentList'] += $SetupArguments
                 break
             }
@@ -285,7 +294,7 @@ function Install-Application
             }
             default
             {
-                Write-Logging -Value '[SR] Use default installation method'
+                Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[SR] Use default installation method'
                 $StartProcessSplat['FilePath'] = "$($SetupFile)"
                 $StartProcessSplat['ArgumentList'] += $SetupArguments
                 break
@@ -302,9 +311,9 @@ function Install-Application
         if ( $StartProcessSplat['ArgumentList'] -match '"\.\\.+\.[a-zA-Z0-9]{3,}"' )
         {
             $StartProcessSplat['ArgumentList'] = ($StartProcessSplat['ArgumentList']).replace('".\', "`"$($script:MyScriptInfo.Directory)\")
-            Write-Logging -Value "[SR] ArgumentList modified ('.\' replaced with script path)"
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[SR] ArgumentList modified ('.\' replaced with script path)"
         }
-        
+
         # replace placeholders in arguments
         foreach ($items in $StartProcessSplat['ArgumentList'])
         {
@@ -319,32 +328,32 @@ function Install-Application
                 {
                     $NewValue = Get-Variable -Name "$( $EnvVarName.replace('$', '') )" -ErrorAction 'SilentlyContinue' | Select-Object -ExpandProperty Value
                 }
-                
+
                 if ($NewValue)
                 {
                     $StartProcessSplat['ArgumentList'] = ($StartProcessSplat['ArgumentList']).replace("`$($($EnvVarName))", "$($NewValue)")
-                    Write-Logging -Value '[SR] ArgumentList modified (placeholder replaced)'
+                    Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[SR] ArgumentList modified (placeholder replaced)'
                 }
             }
         }
 
         # start installation of setup file
-        Write-Logging -Value "[SR] Splat: $($StartProcessSplat | ConvertTo-Json -Depth 3 -Compress)"
-        if ($SetupFile_Ext -eq 'msixbundle')
+        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[SR] Splat: $($StartProcessSplat | ConvertTo-Json -Depth 3 -Compress)"
+        if ( $SetupFile_Ext -in ('msix', 'msixbundle') )
         {
-            Write-Logging -Value '[SR] Install MSIX bundle'
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[SR] Install MSIX / MSIXBUDNLE'
             Add-AppxPackage -Path "$($StartProcessSplat['FilePath'])"
         }
         else
         {
-            Write-Logging -Value '[SR] Install EXE/MSI'
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value '[SR] Install EXE/MSI'
             Start-Process @StartProcessSplat
         }
 
         # check if script should sleep after installation
         if ($SetupSleep -eq 'yes')
         {
-            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Sleep for $($StartSleep) seconds"
+            Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[SR] Sleep for $($StartSleep) seconds"
             Start-Sleep -Seconds $StartSleep
         }
 
@@ -358,7 +367,7 @@ function Install-Application
     }
     catch
     {
-        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[$($script:AppName)] Error: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)" -StdOut 'None'
+        Write-Logging -Module "$($MyInvocation.MyCommand)" -Value "[SR] Error: [$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)" -StdOut 'None'
         Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
     }
 }
@@ -385,6 +394,7 @@ try
             Scope       = 'pre_setup'
         }
         Install-Application @Splat
+        Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
 
     # run main-setup
@@ -398,6 +408,7 @@ try
         Scope       = 'main_setup'
     }
     Install-Application @Splat
+    Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
     # run post-install
     if ($StartProcess_PostInstallScript)
@@ -408,6 +419,7 @@ try
             Scope       = 'post_setup'
         }
         Install-Application @Splat
+        Get-Variable -Name 'Splat' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
     }
 
     Write-Logging -Value "[SR] [$($AppName)] App installation executed"

@@ -3,7 +3,7 @@
     This script performs clean-up of available archived files based on a retention policy.
 
 .DESCRIPTION
-    The Clear-ArchivePath function removes files from a specified archive path that are older than the defined retention policy. 
+    The Clear-ArchivePath function removes files from a specified archive path that are older than the defined retention policy.
     It supports filtering by file extensions and provides an option to skip file removal for testing purposes.
 
 .PARAMETER Path
@@ -13,7 +13,7 @@
     An array of file extensions to filter the files to be removed. Default is '*.log'.
 
 .PARAMETER RetentionPolicy
-    The retention policy defining the age of files to be removed. 
+    The retention policy defining the age of files to be removed.
     The format is a number followed by a unit (y, M, d, h, m, s) representing years, months, days, hours, minutes, or seconds.
 
 .PARAMETER SkipRemoval
@@ -76,19 +76,19 @@ function Clear-ArchivePath
 
         # Get all files in archive path
         Write-Verbose -Message 'Get all files in archive path...'
-        $ArchiveFiles = Get-ChildItem -Path "$($Path)" -Include $FileExtensions -File -Recurse | Sort-Object -Descending
+        $ArchiveFiles = Get-ChildItem -Path "$( Join-Path -Path $Path -ChildPath '*' )" -Include $FileExtensions -File -Recurse | Sort-Object -Descending
         Write-Verbose -Message "Number of total files: $( ($ArchiveFiles | Measure-Object).Count )"
 
         # Get files older then RetentionPolicy
         Write-Verbose -Message "Get files older then $($RetentionValue)$($RetentionMode)..."
         switch -CaseSensitive ($RetentionMode)
         {
-            'y' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddYears($RetentionValue) -lt (Get-Date) }; break }
-            'M' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMonths($RetentionValue) -lt (Get-Date) }; break }
-            'd' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddDays($RetentionValue) -lt (Get-Date) }; break }
-            'h' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddHours($RetentionValue) -lt (Get-Date) }; break }
-            'm' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMinutes($RetentionValue) -lt (Get-Date) }; break }
-            's' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddSeconds($RetentionValue) -lt (Get-Date) }; break }
+            'y' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddYears([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
+            'M' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMonths([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
+            'd' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddDays([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
+            'h' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddHours([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
+            'm' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddMinutes([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
+            's' { $FilesToRemove = $ArchiveFiles | Where-Object { ($_.LastWriteTimeUtc).AddSeconds([int]$RetentionValue) -lt (Get-Date).ToUniversalTime() }; break }
             default { throw "Defined mode are not supported: $($RetentionMode)"; break }
         }
         Write-Verbose -Message "Number of old files: $( ($FilesToRemove | Measure-Object).Count )"

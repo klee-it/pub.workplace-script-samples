@@ -43,7 +43,7 @@ function ConvertTo-CertHashTable
         )]
         [Alias('Subject', 'Issuer')]
         [String] $Value = '',
-        
+
         [Parameter(
             Mandatory = $false,
             ValueFromPipeline = $True,
@@ -61,7 +61,7 @@ function ConvertTo-CertHashTable
             {
                 $outputInfo = [ordered]@{}
                 $regex = '(?<key>[^=,]+)=(?:"(?<value>[^"]+)"|(?<value>[^,]+))'
-        
+
                 # Match all key-value pairs in the string
                 foreach ($match in [regex]::Matches($Value, $regex))
                 {
@@ -71,8 +71,8 @@ function ConvertTo-CertHashTable
                 }
             }
             2
-            { 
-                $processedString = $Value -replace ',(?=(?:[^"]*"[^"]*")*[^"]*$)', "`n"
+            {
+                $processedString = $Value -replace ',(?=(?:[^"]*"[^"]*")*[^"]*$)', "$( [System.Environment]::NewLine )"
                 $outputInfo = $processedString | ConvertFrom-StringData
             }
         }

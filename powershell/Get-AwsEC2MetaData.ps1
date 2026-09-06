@@ -63,7 +63,7 @@ function Get-AwsEC2MetaData
         [Parameter(Mandatory = $false)]
         [ValidateScript({ $_ -match '^http://' })]
         [String] $BaseUrl = 'http://169.254.169.254/latest',
-        
+
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
         [String[]] $SubUrls = @('meta-data/instance-id'),
@@ -77,7 +77,7 @@ function Get-AwsEC2MetaData
     {
         # set output object
         $outputInfo = @{}
-        
+
         foreach ($ApiUrl in $SubUrls)
         {
             # local SSM
@@ -100,7 +100,7 @@ function Get-AwsEC2MetaData
                 {
                     $requestUri = "$($BaseUrl.TrimEnd('/'))/$($ApiUrl.TrimStart('/'))"
                     $outputInfo["$($requestUri)"] = (New-Object System.Net.WebClient).DownloadString("$($requestUri)")
-    
+
                     # clean-up
                     Get-Variable -Name 'requestUri' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                 }
@@ -110,7 +110,7 @@ function Get-AwsEC2MetaData
                     $ImdsVersion = 'IMDSv2'
                 }
             }
-        
+
             # IMDSv2
             if ($ImdsVersion -eq 'IMDSv2')
             {
@@ -119,16 +119,17 @@ function Get-AwsEC2MetaData
                     # set urls
                     $requestUri = "$($BaseUrl.TrimEnd('/'))/$($ApiUrl.TrimStart('/'))"
                     $requestApiTokenUri = "$($BaseUrl.TrimEnd('/'))/api/token"
-    
+
                     # get token
-                    $ApiToken = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token-ttl-seconds' = '21600' } -Method 'PUT' -Uri "$($requestApiTokenUri)"
-                    
+                    $AccessToken = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token-ttl-seconds' = '21600' } -Method 'PUT' -Uri "$($requestApiTokenUri)"
+
                     # get metadata information
-                    $outputInfo["$($requestUri)"] = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token' = "$($ApiToken)" } -Method 'GET' -Uri "$($requestUri)"
-    
+                    $outputInfo["$($requestUri)"] = Invoke-RestMethod -Headers @{'X-aws-ec2-metadata-token' = "$($AccessToken)" } -Method 'GET' -Uri "$($requestUri)"
+
                     # clean-up
                     Get-Variable -Name 'requestUri' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                     Get-Variable -Name 'requestApiTokenUri' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
+                    Get-Variable -Name 'AccessToken' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
                 }
                 catch
                 {

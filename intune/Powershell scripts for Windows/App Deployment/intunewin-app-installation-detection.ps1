@@ -168,16 +168,22 @@ function Get-InstalledAppsFromRegistry
     [CmdLetBinding(DefaultParameterSetName = 'Default')]
 
     param(
-        [Parameter(ParameterSetName = 'Default', Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
+        [Switch] $IncludeCurrentUser = $false,
+
+        [Parameter(Mandatory = $false)]
+        [Switch] $OnlyCurrentUser = $false,
+
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $true)]
         [String] $DisplayName,
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $DisplayNameExclusion = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $VersionMajor = '',
 
-        [Parameter(ParameterSetName = 'Default', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'SingleApp', Mandatory = $false)]
         [String] $UninstallString = '',
 
         [Parameter(ParameterSetName = 'All', Mandatory = $true)]
@@ -191,14 +197,30 @@ function Get-InstalledAppsFromRegistry
     {
         # query all the registry keys where applications usually leave a mark for installed applications
         Write-Verbose -Message 'Collecting installed applications from registry...'
-        $RegistryUninstallPaths = @(
-            'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-            'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
-        )
+        if ($OnlyCurrentUser)
+        {
+            Write-Verbose -Message 'Set current user uninstall registry path...'
+            $RegistryUninstallPaths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*')
+        }
+        else
+        {
+            Write-Verbose -Message 'Set local machine uninstall registry paths...'
+            $RegistryUninstallPaths = @(
+                'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+                'HKLM:\Software\WowAA32Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+            )
+        }
+
+        if ($IncludeCurrentUser)
+        {
+            Write-Verbose -Message 'Including current user uninstall registry path...'
+            $RegistryUninstallPaths += 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        }
+
 
         $ReadRegistry = @()
-        foreach ($RegistryUninstallPath in $RegistryUninstallPaths)
+        foreach ($RegistryUninstallPath in ($RegistryUninstallPaths | Sort-Object -Unique))
         {
             $ReadRegistry += Get-ItemProperty -Path "$($RegistryUninstallPath)" -ErrorAction 'SilentlyContinue' | Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, VersionMajor, VersionMinor, PSChildName, UninstallString, InstallLocation, @{ Name = 'RegistryPath'; Expression = { $RegistryUninstallPath } }
         }

@@ -170,14 +170,14 @@ if which apt-get > /dev/null; then
     fi
 
     # check if source lists can be modernized
-    echo "# check if source lists can be modernized"
-    if grep -Pc '^N:.+apt modernize-sources' "$LogFile" > /dev/null; then
-        echo "|__ modernize source lists"
-        apt -y modernize-sources
+    # echo "# check if source lists can be modernized"
+    # if grep -Pc '^N:.+apt modernize-sources' "$LogFile" > /dev/null; then
+    #     echo "|__ modernize source lists"
+    #     apt -y modernize-sources
 
-        echo "|__ re-run apt-get update after modernizing source lists"
-        apt-get update > "$LogFile" 2>&1
-    fi 
+    #     echo "|__ re-run apt-get update after modernizing source lists"
+    #     apt-get update > "$LogFile" 2>&1
+    # fi
 
     # check if source lists are broken
     echo "# check if source lists are broken"
@@ -186,20 +186,20 @@ if which apt-get > /dev/null; then
     if [ "$APT_check" == "0" ]; then
         echo "# fix dpkg configuration"
         dpkg --configure -a
-        
+
         echo "# fix broken dependencies"
         apt --fix-broken install
 
         echo "# remove unused kernels"
         apt-get -y purge $(dpkg --list | grep 'linux-image-.*-generic' | grep '^rc' | awk '{print $2}' | sort -u)
 
-        echo "# update drivers and kernel modules"
-        if which ubuntu-drivers > /dev/null; then
-            echo "|__ update ubuntu drivers"
-            ubuntu-drivers autoinstall
-        else
-            echo "|__ ubuntu-drivers is not installed"
-        fi
+        # echo "# update drivers and kernel modules" # be carefully, triggers flip-flopping on some drivers, e.g. nvidia
+        # if which ubuntu-drivers > /dev/null; then
+        #     echo "|__ update ubuntu drivers"
+        #     ubuntu-drivers autoinstall
+        # else
+        #     echo "|__ ubuntu-drivers is not installed"
+        # fi
 
         echo "# rebuild dkms modules"
         if which dkms > /dev/null; then

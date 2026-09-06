@@ -13,16 +13,20 @@
 #
 
 # set script parameters
-$OutputHash = @{
-    windows_host_name = 'NOK'
+$OutputHash = [ordered]@{
+    windows_host_name          = 'NOK'
 }
 
+###
+### Hostname check
+###
 # This variable represents the current host name of the device
 $COMPUTERNAME = "$( $env:computername.ToUpper() )"
 
+# check if the host name matches the device naming convention
 if ($COMPUTERNAME -match '^[a-zA-Z]{3,4}-[a-zA-Z0-9]{7,}$')
 {
-    $OutputHash.windows_host_name = "OK"
+    $OutputHash.windows_host_name = 'OK'
 }
 
 return $OutputHash | ConvertTo-Json -Compress

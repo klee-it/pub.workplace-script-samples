@@ -34,28 +34,39 @@ function Get-LocalSystemDetails
     {
         # get Windows principal object
         $WindowsPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        $OperatingSystem = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object Caption, OSArchitecture, InstallDate, LastBootUpTime
 
         # set system details object
-        $SystemDetails = [PSCustomObject]@{
-            PowerShellVersion      = "$($PSVersionTable.PSVersion)"
-            PowerShellEdition      = "$($PSVersionTable.PSEdition)"
-            Is64BitProcess         = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
+        $SystemDetails = [PSCustomObject][Ordered]@{
+            AppInstallerVersion    = "$( try { Get-AppxProvisionedPackage -Online -ErrorAction 'Stop' | Where-Object {$_.PackageName -like 'Microsoft.DesktopAppInstaller*'} | Select-Object -ExpandProperty 'Version' } catch { 'N/A' } )"
+            BitLockerAvailable     = if (Get-Command 'Get-BitLockerVolume' -ErrorAction 'SilentlyContinue') { $true } else { $false }
+            ComputerInfo           = $null
+            ComputerName           = "$($env:COMPUTERNAME)"
+            FirmwareType           = "$($env:Firmware_Type)"
+            InstallDate            = "$($OperatingSystem.InstallDate)"
             Is64BitOperatingSystem = [Environment]::Is64BitOperatingSystem
+            Is64BitProcess         = [Environment]::Is64BitProcess # if $false, then 32-bit process needs maybe instead of 'C:\WINDOWS\System32' the path: 'C:\WINDOWS\sysnative'
+            LastBootDateTime       = "$($OperatingSystem.LastBootUpTime)"
+            LastBootUpTime         = $null
+            OSArchitecture         = "$($OperatingSystem.OSArchitecture)"
+            OSName                 = "$($OperatingSystem.Caption)"
+            OsType                 = $null
+            PendingReboot          = $false
+            PowerShellEdition      = "$($PSVersionTable.PSEdition)"
+            PowerShellVersion      = "$($PSVersionTable.PSVersion)"
+            ProcessorArchitecture  = "$($env:PROCESSOR_ARCHITECTURE)"
             RuntimeUser            = [PSCustomObject]@{
-                Name               = $WindowsPrincipal.Identity.Name
-                Sid                = $WindowsPrincipal.Identity.User.Value
                 AuthenticationType = $WindowsPrincipal.Identity.AuthenticationType
+                Groups             = $WindowsPrincipal.Identity.Groups
+                IsAdmin            = $WindowsPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')
                 IsAuthenticated    = $WindowsPrincipal.Identity.IsAuthenticated
                 IsSystem           = $WindowsPrincipal.Identity.IsSystem
-                IsAdmin            = $WindowsPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole] 'Administrator')
-                Groups             = $WindowsPrincipal.Identity.Groups
+                Name               = $WindowsPrincipal.Identity.Name
+                Sid                = $WindowsPrincipal.Identity.User.Value
             }
             RuntimeUserScope       = if ($env:USERNAME -eq "$($env:COMPUTERNAME)$") { 'System' } else { 'User' }
-            LastBootDateTime       = Get-CimInstance -ClassName 'Win32_OperatingSystem' | Select-Object -ExpandProperty LastBootUpTime
-            LastBootUpTime         = $null
-            PendingReboot          = $false
-            ComputerInfo           = $null
-            OsType                 = $null
+            TimeZone               = Get-TimeZone | Select-Object -ExpandProperty Id
+            WinGetVersion          = "$( try { Deploy-WingetApps -Version -IncludeScope $false -ErrorAction 'Stop' | Select-Object -ExpandProperty ConsoleOutput } catch { 'N/A' } )"
         }
 
         # PowerShell v7
@@ -71,22 +82,59 @@ function Get-LocalSystemDetails
         }
 
         # check if a reboot is pending
+        $pendingReboot = $false
+
+        # Windows Update COM API
         try
         {
-            $SystemDetails.PendingReboot = (New-Object -ComObject 'Microsoft.Update.SystemInfo').RebootRequired
+            if ((New-Object -ComObject 'Microsoft.Update.SystemInfo').RebootRequired)
+            {
+                $pendingReboot = $true
+            }
         }
         catch
         {
+            # WU COM unavailable — continue with registry checks
+        }
+
+        # Registry keys — key existence indicates a pending reboot
+        if (-not $pendingReboot)
+        {
+            $registryChecks = @(
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending'
+                'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\PostRebootReporting'
+            )
+
+            foreach ($registryPath in $registryChecks)
+            {
+                if (Test-Path -LiteralPath $registryPath)
+                {
+                    $pendingReboot = $true
+                    break
+                }
+            }
+        }
+
+        # Pending file rename operations (Session Manager)
+        if (-not $pendingReboot)
+        {
             try
             {
-                Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired' -ErrorAction 'Stop' | Out-Null
-                $SystemDetails.PendingReboot = $true
+                $pendingFileRenameOperations = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager' -Name 'PendingFileRenameOperations' -ErrorAction 'Stop').PendingFileRenameOperations
+                if ($pendingFileRenameOperations)
+                {
+                    $pendingReboot = $true
+                }
             }
             catch
             {
-                $SystemDetails.PendingReboot = $false
+                # Property absent — no pending file renames
             }
         }
+
+        $SystemDetails.PendingReboot = $pendingReboot
+        Get-Variable -Name 'pendingReboot' -ErrorAction 'SilentlyContinue' | Remove-Variable -Force
 
         Write-Output -InputObject $SystemDetails
     }

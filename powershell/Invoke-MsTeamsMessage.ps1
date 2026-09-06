@@ -3,54 +3,35 @@
     Sends a message to a Microsoft Teams channel using a webhook URL.
 
 .DESCRIPTION
-    This function sends a message to a Microsoft Teams channel using the specified webhook URL. 
-    It allows specifying the message content, including images, text blocks, and fact sets.
+    The Invoke-MsTeamsMessage function posts an Adaptive Card to a Microsoft Teams workflow webhook.
 
 .PARAMETER URL
-    The webhook URL to use for sending the message. This parameter is mandatory.
+    The Teams workflow webhook URL (logic.azure.com).
 
 .PARAMETER Message
-    The message content to be sent. This parameter is mandatory and should be an array of PSCustomObject.
+    Adaptive Card body elements to include in the card.
 
 .OUTPUTS
     [System.Management.Automation.PSObject]
-        - The response from the Microsoft Teams webhook.
+        The response from the Microsoft Teams webhook.
 
 .EXAMPLE
     PS> $MsTeamsSplat = @{
-        URL = 'https://anywebsite.com/webhook'
+        URL = "https://prod-00.westus.logic.azure.com:443/workflows/abc"
         Message = @(
-            [PSCustomObject]@{
-                type = "Image"
-                url = "https://anywebsite.com/image.png"
-                height = "30px"
-                altText = "Problem report"
-            },
             [PSCustomObject]@{
                 type = "TextBlock"
                 text = "**TEST POST**"
                 style = "heading"
-            },
-            [PSCustomObject]@{
-                type = "FactSet"
-                facts = @(
-                    [PSCustomObject]@{
-                        title = "Powershell"
-                        value = "is cool"
-                    },
-                    [PSCustomObject]@{
-                        title = "MS Teams worflows"
-                        value = "is crazy shit"
-                    }
-                )
             }
         )
     }
     PS> Invoke-MsTeamsMessage @MsTeamsSplat
+    Sends an Adaptive Card to the Teams workflow webhook.
 
 .NOTES
     Author: klee-it
-    PowerShell Version: 5.1, 7.x
+    PowerShell Version: 7.x
     Documentation: https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL%2Ctext1
 #>
 
@@ -60,57 +41,56 @@
 function Invoke-MsTeamsMessage
 {
     [OutputType([System.Management.Automation.PSObject])]
-    [CmdLetBinding(DefaultParameterSetName = 'Default')]
+    [CmdLetBinding()]
 
     param(
-        [Parameter(Mandatory = $True)]
+        [Parameter(Mandatory = $true)]
         [ValidateScript({ $_ -match '^https://.+.logic.azure.com:443/workflows/.*' })]
         [String] $URL,
 
-        [Parameter(Mandatory = $True)]
+        [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [Object[]] $Message
     )
 
-    try
-    {
-        Write-Verbose -Message 'Create MS Teams message...'
+    Write-Verbose -Message 'Create MS Teams message...'
 
-        # create request body
-        $requestBody = [PSCustomObject]@{
-            type        = 'message'
-            attachments = @(
-                [PSCustomObject]@{
-                    contentType = 'application/vnd.microsoft.card.adaptive'
-                    contentUrl  = $null
-                    content     = [PSCustomObject]@{
-                        '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'
-                        type      = 'AdaptiveCard'
-                        version   = '1.4'
-                        body      = $Message
-                    }
+    $requestBody = [PSCustomObject]@{
+        type        = 'message'
+        attachments = @(
+            [PSCustomObject]@{
+                contentType = 'application/vnd.microsoft.card.adaptive'
+                contentUrl  = $null
+                content     = [PSCustomObject]@{
+                    '$schema' = 'http://adaptivecards.io/schemas/adaptive-card.json'
+                    type      = 'AdaptiveCard'
+                    version   = '1.4'
+                    body      = $Message
                 }
-            )
-        }
-        Write-Verbose -Message "Message: $($requestBody | ConvertTo-Json -Compress -Depth 10)"
-
-        # post MS Teams message
-        Write-Verbose -Message 'Send MS Teams message...'
-        $webRequestSplat = @{
-            Uri         = "$($URL)"
-            Method      = 'Post'
-            Body        = $($requestBody | ConvertTo-Json -Compress -Depth 10)
-            ContentType = 'application/json'
-        }
-        Write-Verbose -Message "Splat: $($webRequestSplat | ConvertTo-Json -Compress)"
-        
-        $outputInfo = Invoke-RestMethod @webRequestSplat
-        Write-Verbose -Message 'MS Teams message sent successfully'
-
-        Write-Output -InputObject $outputInfo
+            }
+        )
     }
-    catch
+    Write-Verbose -Message "Message: $($requestBody | ConvertTo-Json -Compress -Depth 10)"
+
+    Write-Verbose -Message 'Send MS Teams message...'
+    $statusCode = 0
+    $webRequestSplat = @{
+        Uri                = "$($URL)"
+        Method             = 'Post'
+        Body               = $($requestBody | ConvertTo-Json -Compress -Depth 10)
+        ContentType        = 'application/json'
+        SkipHttpErrorCheck = $true
+        StatusCodeVariable = 'statusCode'
+    }
+    Write-Verbose -Message "Splat: $($webRequestSplat | ConvertTo-Json -Compress)"
+
+    $outputInfo = Invoke-RestMethod @webRequestSplat
+
+    if ($statusCode -ge 400)
     {
-        Write-Error "[$($_.InvocationInfo.ScriptLineNumber)] $($_.Exception.Message)"
+        throw "Teams request failed: HTTP $($statusCode)"
     }
+
+    Write-Verbose -Message 'MS Teams message sent successfully'
+    Write-Output -InputObject $outputInfo
 }
